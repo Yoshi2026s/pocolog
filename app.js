@@ -63,7 +63,7 @@ function cheerSelect(value,label,onchange){
   closeCheerPicker();activeCheer=trigger;cheerPicker.replaceChildren();
   const choices=['〇',...Array.from({length:48},(_,i)=>String(i+1)),''];
   const options=choices.map((choice,index)=>{
-   const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===0));option.tabIndex=-1;option.textContent=choice||'未記入（クリア）';
+   const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===0));option.tabIndex=-1;option.textContent=choice;if(choice==='')option.setAttribute('aria-label','空欄');
    option.onfocus=()=>options.forEach(item=>item.setAttribute('aria-selected',String(item===option)));
    option.onclick=()=>{trigger.textContent=choice;onchange(choice);save();stats();closeCheerPicker(true);};
    cheerPicker.append(option);return option;
