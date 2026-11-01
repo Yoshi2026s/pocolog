@@ -32,7 +32,7 @@ addPhotoLivers();
 data=book.months[book.currentMonth];
 $('month').value=book.currentMonth;
 $('month').onchange=()=>{const m=$('month').value;if(!monthValid(m))return;const created=!book.months[m];if(created)book.months[m]={columns:[...data.columns],rows:data.rows.map(r=>({name:r.name,memo:'',values:data.columns.map(()=>'')}))};book.currentMonth=m;data=book.months[m];save(created);render();};
-const monthly=document.createElement('section');monthly.className='panel';monthly.style.marginTop='24px';const monthlyTitle=document.createElement('h2');monthlyTitle.textContent='月別の実績（K）';const monthlyBars=document.createElement('div');monthlyBars.id='monthly';monthly.append(monthlyTitle,monthlyBars);document.querySelector('main').append(monthly);
+const monthly=document.createElement('section');monthly.className='panel';monthly.style.marginTop='24px';const monthlyTitle=document.createElement('h2');monthlyTitle.textContent='月別の実績（K）';const monthlyBars=document.createElement('div');monthlyBars.id='monthly';monthly.append(monthlyTitle,monthlyBars);$('summaryContent').append(monthly);
 function measure(values){const counts=values.reduce((a,v)=>{const s=v.trim();if(s){a.filled++;if(/^[○〇◯]$/.test(s))a.circle++;else if(/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(s)){const n=Number(s);if(Number.isFinite(n)&&Number.isFinite(a.number+n))a.number+=n;}}return a;},{number:0,circle:0,filled:0});return {...counts,...PocoCoins.summarize(values)};}
 const fmt=n=>n.toLocaleString('ja-JP',{maximumFractionDigits:10});
 function save(edited=true){try{localStorage.setItem(KEY,JSON.stringify(book));$('status').textContent='このブラウザに保存済み';}catch{$('status').textContent='保存できません。バックアップを保存してください。';}if(edited)window.dispatchEvent(new Event('pocolog:edit'));}
@@ -63,7 +63,7 @@ function cheerSelect(value,label,onchange){
   closeCheerPicker();activeCheer=trigger;cheerPicker.replaceChildren();
   const choices=['','〇',...Array.from({length:48},(_,i)=>String(i+1))];
   const options=choices.map((choice,index)=>{
-   const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===1));option.tabIndex=-1;option.textContent=choice;if(choice==='')option.setAttribute('aria-label','空欄');
+   const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===0));option.tabIndex=-1;option.textContent=choice;if(choice==='')option.setAttribute('aria-label','空欄');
    option.onfocus=()=>options.forEach(item=>item.setAttribute('aria-selected',String(item===option)));
    option.onclick=()=>{trigger.textContent=choice;onchange(choice);save();stats();closeCheerPicker(true);};
    cheerPicker.append(option);return option;
@@ -79,7 +79,7 @@ function cheerSelect(value,label,onchange){
    if(event.key==='Tab')closeCheerPicker(true);
   };
   positionCheerPicker();
-  trigger.setAttribute('aria-expanded','true');cheerPicker.showPopover();cheerPicker.scrollTop=0;options[1].focus({preventScroll:true});
+  trigger.setAttribute('aria-expanded','true');cheerPicker.showPopover();cheerPicker.scrollTop=0;options[0].focus({preventScroll:true});
  }
  trigger.onclick=open;
  trigger.onkeydown=event=>{if(['ArrowDown','ArrowUp','Home'].includes(event.key)){event.preventDefault();open();}};
@@ -88,7 +88,7 @@ function cheerSelect(value,label,onchange){
 
 function nameControls(name,label,show,rename){
  const wrapper=document.createElement('div');
- const button=document.createElement('button');button.type='button';button.className='name-trigger';button.textContent=name||'（未設定）';button.setAttribute('aria-label',`${label} ${name}の必要コイン合計`);button.onclick=show;
+ const button=document.createElement('button');button.type='button';button.className='name-trigger';button.textContent=name||'（未設定）';button.title=name;button.setAttribute('aria-label',`${label} ${name}の必要コイン合計`);button.onclick=show;
  const edit=document.createElement('button');edit.type='button';edit.className='rename';edit.textContent='編集';edit.setAttribute('aria-label',`${label} ${name}の名前を編集`);
  edit.onclick=()=>{const next=prompt(`${label}を編集`,name);if(next===null)return;rename(next);save();render();};wrapper.append(button,edit);return wrapper;
 }
@@ -118,22 +118,22 @@ function render(){
  cell(head,'th').textContent='ライバー名';
  data.columns.forEach((c,j)=>{
   const th=cell(head,'th');th.append(nameControls(c,'アカウント',()=>showCoinDialog('account',j),v=>{data.columns[j]=v;}));
-  const b=document.createElement('button');b.textContent='削除';b.setAttribute('aria-label',`${c}列を削除`);
+  const b=document.createElement('button');b.textContent='削除';b.className='delete-column';b.setAttribute('aria-label',`${c}列を削除`);
   b.onclick=()=>{if(confirm(`「${data.columns[j]}」列とその記録を削除しますか？`)){data.columns.splice(j,1);data.rows.forEach(r=>r.values.splice(j,1));save();render();}};
   th.append(document.createElement('br'),b);
  });
- cell(head,'th').textContent='合計（K）';cell(head,'th').textContent='必要コイン';cell(head,'th').textContent='メモ';cell(head,'th');
+ cell(head,'th','extra-col').textContent='合計（K）';cell(head,'th','extra-col').textContent='必要コイン';cell(head,'th','extra-col').textContent='メモ';cell(head,'th','extra-col');
  const body=table.createTBody();
  data.rows.forEach((r,i)=>{
   const tr=body.insertRow();cell(tr,'td','name').append(nameControls(r.name,'ライバー',()=>showCoinDialog('liver',i),v=>r.name=v));
   r.values.forEach((v,j)=>{
    const td=cell(tr);td.append(cheerSelect(v,`${r.name}・${data.columns[j]}`,v=>r.values[j]=v));
   });
-  const total=cell(tr,'td','total');total.dataset.row=i;
-  const coins=cell(tr,'td','total coin-total');coins.dataset.coinRow=i;
-  cell(tr,'td','memo').append(input(r.memo,`${r.name}のメモ`,v=>r.memo=v));
+  const total=cell(tr,'td','total extra-col');total.dataset.row=i;
+  const coins=cell(tr,'td','total coin-total extra-col');coins.dataset.coinRow=i;
+  cell(tr,'td','memo extra-col').append(input(r.memo,`${r.name}のメモ`,v=>r.memo=v));
   const b=document.createElement('button');b.textContent='×';b.className='remove';b.setAttribute('aria-label',`${r.name}を削除`);
-  b.onclick=()=>{if(confirm(`「${r.name}」の記録を削除しますか？`)){data.rows.splice(i,1);save();render();}};cell(tr).append(b);
+  b.onclick=()=>{if(confirm(`「${r.name}」の記録を削除しますか？`)){data.rows.splice(i,1);save();render();}};cell(tr,'td','extra-col').append(b);
  });
  stats();
 }
@@ -171,6 +171,7 @@ function stats(){
 $('addRow').onclick=()=>{data.rows.push({name:'新しいライバー',memo:'',values:data.columns.map(()=>'')});save();render();};
 $('addCol').onclick=()=>{if(data.columns.length>=100)return alert('アカウントは100列までです。');data.columns.push('新しいアカウント');data.rows.forEach(r=>r.values.push(''));save();render();};
 $('metric').onchange=stats;
+$('tableMode').onclick=()=>{const expanded=$('tablePanel').classList.toggle('table-detail');$('tableMode').setAttribute('aria-pressed',String(expanded));$('tableMode').textContent=expanded?'一覧に戻る':'編集・詳細';};
 $('refresh').onclick=()=>{try{localStorage.setItem(KEY,JSON.stringify(book));location.reload();}catch{$('status').textContent='保存できないため更新を中止しました。バックアップを保存してください。';}};
 function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('download').onclick=()=>download(JSON.stringify(book,null,2),'application/json','pocolog-backup.json');
