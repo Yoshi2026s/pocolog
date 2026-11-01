@@ -110,7 +110,9 @@ function sortLivers(field){
 function sortHeader(head,field,label,cls){
  const th=cell(head,'th',cls);const active=rowSort.field===field&&rowSort.month===book.currentMonth;
  th.setAttribute('aria-sort',active?(rowSort.direction===1?'ascending':'descending'):'none');
- const button=document.createElement('button');button.type='button';button.className='sort-trigger';button.dataset.sortField=field;button.textContent=label;button.setAttribute('aria-label',`${label}で並べ替え`);button.title='押すたびに早い順・遅い順を切り替えます';button.onclick=()=>sortLivers(field);th.append(button);
+ const text=document.createElement('span');text.className='sort-label';text.dataset.sortField=field;text.textContent=label;text.setAttribute('role','button');text.tabIndex=0;text.setAttribute('aria-label',`${label}で並べ替え`);text.title='文字を押すたびに早い順・遅い順を切り替えます';
+ text.onclick=()=>{if(text.getAttribute('aria-disabled')!=='true')sortLivers(field);};
+ text.onkeydown=event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();text.click();}};th.append(text);
 }
 function attachRowDrag(button,row,tr){
  button.title=`${row.name}：クリックで合計、ドラッグで順番を移動（Alt＋↑↓でも移動）`;
@@ -279,7 +281,7 @@ function render(){
   const coins=cell(tr,'td','total coin-total extra-col');coins.dataset.coinRow=i;
   cell(tr,'td','memo extra-col').append(input(r.memo,`${r.name}のメモ`,v=>r.memo=v));
  });
- stats();
+ stats();requestAnimationFrame(fitTableViewport);
 }
 const coinText=result=>fmt(result.coins)+(result.unknown?` ＋ 未算定${result.unknown}件`:'');
 function coinSummary(id,entries){
@@ -312,6 +314,15 @@ function stats(){
  coinSummary('liverCoins',liverTotals);coinSummary('accountCoins',cols);
 }
 
+function fitTableViewport(){
+ const wrap=$('grid').parentElement;
+ if(!window.matchMedia('(max-width:700px), (max-height:500px) and (max-width:1000px)').matches){wrap.style.maxHeight='';wrap.style.minHeight='';return;}
+ const top=wrap.getBoundingClientRect().top+window.scrollY;const available=Math.max(96,window.innerHeight-top-64);
+ wrap.style.maxHeight=available+'px';wrap.style.minHeight=Math.min(120,available)+'px';
+}
+window.addEventListener('resize',fitTableViewport);
+const tableViewportObserver=new ResizeObserver(()=>requestAnimationFrame(fitTableViewport));
+for(const selector of ['header','.page-title','.shared-panel','.cards','.table-bar'])tableViewportObserver.observe(document.querySelector(selector));
 const toolsMenu=document.querySelector('.table-tools');
 function positionToolsMenu(){
  if(!toolsMenu.open)return;const menu=toolsMenu.querySelector('.toolbar');const anchor=toolsMenu.querySelector('summary').getBoundingClientRect();
@@ -343,6 +354,6 @@ window.pocolog = {
   data=book.months[book.currentMonth];$('month').value=book.currentMonth;
   save(false);render();
  },
- setEditing(enabled){if(!enabled){clearRowDrag();closeCheerPicker();}document.querySelectorAll('#grid input,#grid select,#grid button,#addRow,#addCol,#upload,#month').forEach(el=>el.disabled=!enabled);},
+ setEditing(enabled){if(!enabled){clearRowDrag();closeCheerPicker();}document.querySelectorAll('#grid input,#grid select,#grid button,#addRow,#addCol,#upload,#month').forEach(el=>el.disabled=!enabled);document.querySelectorAll('#grid .sort-label').forEach(el=>{el.setAttribute('aria-disabled',String(!enabled));el.tabIndex=enabled?0:-1;});},
  downloadBackup:(backup=book)=>download(JSON.stringify(backup,null,2),'application/json','pocolog-unsynced-backup.json')
 };
