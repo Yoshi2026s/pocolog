@@ -86,16 +86,33 @@ function cheerSelect(value,label,onchange){
  return trigger;
 }
 
-function nameControls(name,label,show,rename){
+function nameControls(name,label,show){
  const wrapper=document.createElement('div');
  const button=document.createElement('button');button.type='button';button.className='name-trigger';button.textContent=name||'（未設定）';button.title=name;button.setAttribute('aria-label',`${label} ${name}の必要コイン合計`);button.onclick=show;
- const edit=document.createElement('button');edit.type='button';edit.className='rename';edit.textContent='編集';edit.setAttribute('aria-label',`${label} ${name}の名前を編集`);
- edit.onclick=()=>{const next=prompt(`${label}を編集`,name);if(next===null)return;rename(next);save();render();};wrapper.append(button,edit);return wrapper;
+ wrapper.append(button);return wrapper;
 }
+
 function showCoinDialog(kind,index){
  const isAccount=kind==='account';
  const name=isAccount?data.columns[index]:data.rows[index].name;
  const entries=isAccount?data.rows.map(row=>({name:row.name,value:row.values[index]})):data.columns.map((name,j)=>({name,value:data.rows[index].values[j]}));
+ const targetRow=isAccount?null:data.rows[index];
+ const current=()=>isAccount?data.columns[index]===name:data.rows[index]===targetRow;
+ $('nameEdit').setAttribute('aria-label',`${isAccount?'アカウント':'ライバー'} ${name}の名前を編集`);
+ $('nameDelete').textContent=isAccount?'アカウントを削除':'ライバーを削除';
+ $('nameDelete').setAttribute('aria-label',`${isAccount?'アカウント':'ライバー'} ${name}を削除`);
+ $('nameEdit').onclick=()=>{
+  if(!current())return;const next=prompt(`${isAccount?'アカウント':'ライバー名'}を編集`,name);if(next===null)return;
+  if(isAccount)data.columns[index]=next;else targetRow.name=next;
+  save();render();showCoinDialog(kind,index);
+ };
+ $('nameDelete').onclick=()=>{
+  if(!current())return;
+  const question=isAccount?`アカウント「${name}」と各ライバーの記録を削除しますか？`:`ライバー「${name}」の記録を削除しますか？`;
+  if(!confirm(question))return;
+  if(isAccount){data.columns.splice(index,1);data.rows.forEach(row=>row.values.splice(index,1));}else data.rows.splice(index,1);
+  save();render();
+ };
  const total=measure(entries.map(entry=>entry.value));
  $('coinDialogTitle').textContent=`${name||'（未設定）'}の必要コイン合計`;
  $('coinDialogMonth').textContent=`${book.currentMonth} ／ ${isAccount?'アカウント別':'ライバー別'}`;
@@ -139,15 +156,12 @@ function render(){
  cell(head,'th').textContent='ライバー名';
  cell(head,'th','closing-col').textContent='締め時間';cell(head,'th','release-col').textContent='解禁日';
  data.columns.forEach((c,j)=>{
-  const th=cell(head,'th');th.append(nameControls(c,'アカウント',()=>showCoinDialog('account',j),v=>{data.columns[j]=v;}));
-  const b=document.createElement('button');b.textContent='削除';b.className='delete-column';b.setAttribute('aria-label',`${c}列を削除`);
-  b.onclick=()=>{if(confirm(`「${data.columns[j]}」列とその記録を削除しますか？`)){data.columns.splice(j,1);data.rows.forEach(r=>r.values.splice(j,1));save();render();}};
-  th.append(document.createElement('br'),b);
+  const th=cell(head,'th');th.append(nameControls(c,'アカウント',()=>showCoinDialog('account',j)));
  });
- cell(head,'th','extra-col').textContent='合計（K）';cell(head,'th','extra-col').textContent='必要コイン';cell(head,'th','extra-col').textContent='メモ';cell(head,'th','extra-col');
+ cell(head,'th','extra-col').textContent='合計（K）';cell(head,'th','extra-col').textContent='必要コイン';cell(head,'th','extra-col').textContent='メモ';
  const body=table.createTBody();
  data.rows.forEach((r,i)=>{
-  const tr=body.insertRow();cell(tr,'td','name').append(nameControls(r.name,'ライバー',()=>showCoinDialog('liver',i),v=>r.name=v));
+  const tr=body.insertRow();cell(tr,'td','name').append(nameControls(r.name,'ライバー',()=>showCoinDialog('liver',i)));
   cell(tr,'td','closing-col').append(scheduleField(r,'closingTime','締め時間'));cell(tr,'td','release-col').append(scheduleField(r,'releaseDate','解禁日'));
   r.values.forEach((v,j)=>{
    const td=cell(tr);td.append(cheerSelect(v,`${r.name}・${data.columns[j]}`,v=>r.values[j]=v));
@@ -155,8 +169,6 @@ function render(){
   const total=cell(tr,'td','total extra-col');total.dataset.row=i;
   const coins=cell(tr,'td','total coin-total extra-col');coins.dataset.coinRow=i;
   cell(tr,'td','memo extra-col').append(input(r.memo,`${r.name}のメモ`,v=>r.memo=v));
-  const b=document.createElement('button');b.textContent='×';b.className='remove';b.setAttribute('aria-label',`${r.name}を削除`);
-  b.onclick=()=>{if(confirm(`「${r.name}」の記録を削除しますか？`)){data.rows.splice(i,1);save();render();}};cell(tr,'td','extra-col').append(b);
  });
  stats();
 }
