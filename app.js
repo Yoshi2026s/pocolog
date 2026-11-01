@@ -38,18 +38,54 @@ const fmt=n=>n.toLocaleString('ja-JP',{maximumFractionDigits:10});
 function save(edited=true){try{localStorage.setItem(KEY,JSON.stringify(book));$('status').textContent='このブラウザに保存済み';}catch{$('status').textContent='保存できません。バックアップを保存してください。';}if(edited)window.dispatchEvent(new Event('pocolog:edit'));}
 function input(value,label,onchange){const el=document.createElement('input');el.value=value;el.setAttribute('aria-label',label);el.addEventListener('input',()=>{onchange(el.value);save();stats();});return el;}
 function cell(row,tag='td',cls=''){const el=document.createElement(tag);el.className=cls;row.append(el);return el;}
-function cheerSelect(value,label,onchange){
- const select=document.createElement('select');select.className='cheer-select';select.setAttribute('aria-label',label);
- for(const choice of ['〇',...Array.from({length:48},(_,i)=>String(i+1)),'']){
-  const option=document.createElement('option');option.value=choice;option.textContent=choice||'未記入（クリア）';select.append(option);
- }
- const display=/^[○〇◯]$/.test(value.trim())?'〇':value;
- if(![...select.options].some(option=>option.value===display)){
-  const legacy=document.createElement('option');legacy.value=display;legacy.textContent=display+'（現在値）';select.append(legacy);
- }
- select.value=display;
- select.onchange=()=>{onchange(select.value);save();stats();};return select;
+const cheerPicker=document.createElement('div');cheerPicker.id='cheerPicker';cheerPicker.className='cheer-picker';cheerPicker.setAttribute('popover','auto');cheerPicker.setAttribute('role','listbox');cheerPicker.setAttribute('aria-label','エール数を選択');document.body.append(cheerPicker);
+let activeCheer=null;
+function closeCheerPicker(restoreFocus=false){
+ if(!activeCheer)return;const trigger=activeCheer;activeCheer=null;trigger.setAttribute('aria-expanded','false');
+ if(cheerPicker.matches(':popover-open'))cheerPicker.hidePopover();
+ if(restoreFocus&&trigger.isConnected)trigger.focus({preventScroll:true});
 }
+cheerPicker.addEventListener('toggle',event=>{if(event.newState==='closed'&&activeCheer){activeCheer.setAttribute('aria-expanded','false');activeCheer=null;}});
+function positionCheerPicker(){
+ if(!activeCheer)return;
+ const rect=activeCheer.getBoundingClientRect();const maxHeight=Math.min(300,window.innerHeight-24);
+ cheerPicker.style.maxHeight=maxHeight+'px';cheerPicker.style.left=Math.max(8,Math.min(rect.left,window.innerWidth-148))+'px';
+ cheerPicker.style.top=Math.max(8,Math.min(rect.bottom+4,window.innerHeight-maxHeight-8))+'px';
+}
+window.addEventListener('resize',positionCheerPicker);
+window.addEventListener('scroll',event=>{if(event.target!==cheerPicker&&!cheerPicker.contains(event.target))positionCheerPicker();},true);
+function cheerSelect(value,label,onchange){
+ const trigger=document.createElement('button');trigger.type='button';trigger.className='cheer-field';trigger.setAttribute('role','combobox');trigger.setAttribute('aria-label',label);trigger.setAttribute('aria-controls','cheerPicker');trigger.setAttribute('aria-haspopup','listbox');trigger.setAttribute('aria-expanded','false');
+ trigger.textContent=/^[○〇◯]$/.test(value.trim())?'〇':value;
+ function open(){
+  if(trigger.disabled)return;
+  if(activeCheer===trigger){closeCheerPicker(true);return;}
+  closeCheerPicker();activeCheer=trigger;cheerPicker.replaceChildren();
+  const choices=['〇',...Array.from({length:48},(_,i)=>String(i+1)),''];
+  const options=choices.map((choice,index)=>{
+   const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===0));option.tabIndex=-1;option.textContent=choice||'未記入（クリア）';
+   option.onfocus=()=>options.forEach(item=>item.setAttribute('aria-selected',String(item===option)));
+   option.onclick=()=>{trigger.textContent=choice;onchange(choice);save();stats();closeCheerPicker(true);};
+   cheerPicker.append(option);return option;
+  });
+  cheerPicker.onkeydown=event=>{
+   const index=options.indexOf(document.activeElement);let next;
+   if(event.key==='ArrowDown')next=Math.min(options.length-1,index+1);
+   if(event.key==='ArrowUp')next=Math.max(0,index-1);
+   if(event.key==='Home')next=0;
+   if(event.key==='End')next=options.length-1;
+   if(next!==undefined){event.preventDefault();options[next].focus();}
+   if(event.key==='Escape'){event.preventDefault();closeCheerPicker(true);}
+   if(event.key==='Tab')closeCheerPicker(true);
+  };
+  positionCheerPicker();
+  trigger.setAttribute('aria-expanded','true');cheerPicker.showPopover();cheerPicker.scrollTop=0;options[0].focus({preventScroll:true});
+ }
+ trigger.onclick=open;
+ trigger.onkeydown=event=>{if(['ArrowDown','ArrowUp','Home'].includes(event.key)){event.preventDefault();open();}};
+ return trigger;
+}
+
 function nameControls(name,label,show,rename){
  const wrapper=document.createElement('div');
  const button=document.createElement('button');button.type='button';button.className='name-trigger';button.textContent=name||'（未設定）';button.setAttribute('aria-label',`${label} ${name}の必要コイン合計`);button.onclick=show;
@@ -76,6 +112,7 @@ function showCoinDialog(kind,index){
 }
 $('coinDialogClose').onclick=()=>$('coinDialog').close();
 function render(){
+ closeCheerPicker();
  if($('coinDialog').open)$('coinDialog').close();
  const table=$('grid');table.replaceChildren();const head=table.createTHead().insertRow();
  cell(head,'th').textContent='ライバー名';
@@ -91,7 +128,6 @@ function render(){
   const tr=body.insertRow();cell(tr,'td','name').append(nameControls(r.name,'ライバー',()=>showCoinDialog('liver',i),v=>r.name=v));
   r.values.forEach((v,j)=>{
    const td=cell(tr);td.append(cheerSelect(v,`${r.name}・${data.columns[j]}`,v=>r.values[j]=v));
-   const hint=document.createElement('small');hint.className='coin-hint';hint.dataset.cellRow=i;hint.dataset.cellCol=j;td.append(hint);
   });
   const total=cell(tr,'td','total');total.dataset.row=i;
   const coins=cell(tr,'td','total coin-total');coins.dataset.coinRow=i;
@@ -123,10 +159,6 @@ function stats(){
  const liverTotals=data.rows.map(r=>({name:r.name,...measure(r.values)}));
  document.querySelectorAll('[data-row]').forEach(e=>e.textContent=fmt(liverTotals[Number(e.dataset.row)].number));
  document.querySelectorAll('[data-coin-row]').forEach(e=>e.textContent=coinText(liverTotals[Number(e.dataset.coinRow)]));
- document.querySelectorAll('[data-cell-row]').forEach(e=>{
-  const result=PocoCoins.convert(data.rows[Number(e.dataset.cellRow)].values[Number(e.dataset.cellCol)]);
-  e.textContent=result.status==='known'?`${fmt(result.coins)}コイン`:result.status==='check'?'仮チェック':result.status==='blank'?'':'未算定';
- });
  const metric=$('metric').value;const ranked=[...liverTotals].sort((a,b)=>b[metric]-a[metric]);
  $('ranking').replaceChildren();const max=Math.max(0,...ranked.map(r=>r[metric]));
  ranked.forEach(r=>bar($('ranking'),r.name,r[metric],max,metric==='coins'?coinText(r):undefined));
@@ -159,6 +191,6 @@ window.pocolog = {
   data=book.months[book.currentMonth];$('month').value=book.currentMonth;
   save(false);render();
  },
- setEditing(enabled){document.querySelectorAll('#grid input,#grid select,#grid button,#addRow,#addCol,#upload,#month').forEach(el=>el.disabled=!enabled);},
+ setEditing(enabled){if(!enabled)closeCheerPicker();document.querySelectorAll('#grid input,#grid select,#grid button,#addRow,#addCol,#upload,#month').forEach(el=>el.disabled=!enabled);},
  downloadBackup:(backup=book)=>download(JSON.stringify(backup,null,2),'application/json','pocolog-unsynced-backup.json')
 };
