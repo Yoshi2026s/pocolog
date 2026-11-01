@@ -10,7 +10,7 @@ const reloadButton = document.getElementById('sharedReload');
 const archiveButton = document.createElement('button');
 archiveButton.textContent = '接続前の記録を保存';
 archiveButton.hidden = !localStorage.getItem('pocolog.before-shared.v1');
-reloadButton.after(archiveButton);
+(document.querySelector('.table-tools .toolbar') || reloadButton.parentElement).append(archiveButton);
 archiveButton.onclick = () => {
   try { api.downloadBackup(JSON.parse(localStorage.getItem('pocolog.before-shared.v1'))); }
   catch { message('接続前の記録を読み出せませんでした。'); }
