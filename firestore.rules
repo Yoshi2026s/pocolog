@@ -1,6 +1,66 @@
 rules_version = '2';
 service cloud.firestore {
-  match /databases/{database}/documents {
+ match /databases/{database}/documents {
+  // Anyone signed in (including anonymously) may edit this app's existing data.
+  // Keep other users' namespaces outside this permission grant.
+  function canEditAppData(uid) {
+   return request.auth != null && uid == 'HOegKtY86tht3l1aeubUsRtZHOI2';
+  }
+  function allowedArea(area) {
+   return area == 'sync_v1' || area.matches('^sync_test_v1_[a-z0-9-]{1,50}$');
+  }
+  function previous(uid, area) {
+   return exists(/databases/$(database)/documents/users/$(uid)/$(area)/meta)
+    ? get(/databases/$(database)/documents/users/$(uid)/$(area)/meta).data.revision : 0;
+  }
+  function after(uid, area) {
+   return getAfter(/databases/$(database)/documents/users/$(uid)/$(area)/meta).data;
+  }
+  function advance(uid, area) {
+   return after(uid, area).revision == previous(uid, area) + 1
+    && after(uid, area).updatedAt == request.time;
+  }
+  function blockId(index) {
+   return 'logs-' + (index < 10 ? '00' : '0') + string(index);
+  }
+  function rowsShape(data) {
+   return data.keys().hasAll(['rows']) && data.keys().hasOnly(['rows'])
+    && data.rows is list && data.rows.size() > 0 && data.rows.size() <= 100;
+  }
+  function settingsShape(s) {
+   return s is map
+    && s.keys().hasAll(['version','livers','accounts','goals','conversions','updated'])
+    && s.keys().hasOnly(['version','livers','accounts','goals','conversions','updated'])
+    && s.version == 1
+    && s.livers is list && s.livers.size() > 0 && s.livers.size() <= 50
+    && s.accounts is list && s.accounts.size() > 0 && s.accounts.size() <= 50
+    && s.goals is list && s.goals.size() <= 2500
+    && s.conversions is map && s.conversions.size() <= 51
+    && (s.updated == null || s.updated is string);
+  }
+  function validMeta(uid, area, d) {
+   let last = blockId(d.chunkCount - 1);
+   return d.keys().hasAll(['settings','revision','chunkCount','updatedAt'])
+    && d.keys().hasOnly(['settings','revision','chunkCount','updatedAt'])
+    && d.revision is int && d.revision > 0 && d.revision == previous(uid, area) + 1
+    && d.chunkCount is int && d.chunkCount >= 0 && d.chunkCount <= 100
+    && d.updatedAt == request.time && settingsShape(d.settings)
+    && (d.chunkCount == 0 || rowsShape(getAfter(/databases/$(database)/documents/users/$(uid)/$(area)/$(last)).data));
+  }
+  match /users/{uid}/{area}/{id} {
+   allow read: if canEditAppData(uid) && allowedArea(area);
+   allow create, update: if canEditAppData(uid) && allowedArea(area) && (
+    (id == 'meta' && validMeta(uid, area, request.resource.data))
+    || (id.matches('^logs-[0-9]{3}$')
+     && int(id.split('-')[1]) < after(uid, area).chunkCount
+     && rowsShape(request.resource.data)
+     && (int(id.split('-')[1]) == after(uid, area).chunkCount - 1 || request.resource.data.rows.size() == 100)
+     && advance(uid, area))
+   );
+   allow delete: if canEditAppData(uid) && allowedArea(area) && id.matches('^logs-[0-9]{3}$')
+    && int(id.split('-')[1]) < 100
+    && int(id.split('-')[1]) >= after(uid, area).chunkCount && advance(uid, area);
+  }
     // Public collaborative table: anonymous Firebase users may edit only this document.
     match /pocolog/shared {
       function signedIn() { return request.auth != null; }
@@ -17,5 +77,5 @@ service cloud.firestore {
         && request.resource.data.revision == resource.data.revision + 1;
       allow delete: if false;
     }
-  }
+ }
 }
