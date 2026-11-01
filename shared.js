@@ -120,7 +120,12 @@ async function start() {
     });
   } catch (error) {
     clearTimeout(waiting);
-    api.setEditing(true); message(`共有先に接続できません。このブラウザへの保存です。${error.code || error.message}`);
+    api.setEditing(true);
+    if (['auth/admin-restricted-operation', 'auth/operation-not-allowed'].includes(error.code)) {
+      message('共有編集のログイン設定がまだ完了していません。入力はこのブラウザに保存できます。');
+    } else {
+      message(`共有先に接続できません。このブラウザへの保存です。${error.code || error.message}`);
+    }
   }
 }
 window.addEventListener('offline', () => { if (connected) message('オフラインです。入力はこのブラウザに保存し、共有保存は接続後に行ってください。'); });

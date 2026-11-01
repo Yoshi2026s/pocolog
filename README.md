@@ -32,13 +32,13 @@ Chromium で、編集、K 単位の合計、仮チェック集計、月別デー
 
 ## Firebase 共有保存（接続待ち）
 
-対象プロジェクトIDは `pocolog` です。公開 SDK 設定と管理認証はまだ接続していません。
+対象プロジェクトIDは `pocolog-baec6` です。ユーザー提供の Web SDK 公開設定を反映済みです。管理認証はまだ接続していません。
 
 1. 対象プロジェクトの既存アプリと Rules を確認します。この作業ではまだ本番変更を行っていません。
 2. Firebase Console の Web アプリ公開 SDK 設定（apiKey、authDomain、projectId、appId など）を `firebase-config.js` の `window.POCOLOG_FIREBASE_CONFIG` に設定します。管理者の秘密鍵やトークンは入れません。
 3. Firebase Authentication の匿名認証と Firestore を使います。全利用者は同じ `/pocolog/shared` を共同編集します。匿名認証は編集者を限定する仕組みではなく、サイト利用者が全員の記録を変更できる構成です。
 4. `firestore.rules` はこのアプリ用のルール案です。既存プロジェクトでは既存ルールを読み取り、対象の match ブロックを統合して検証する必要があります。このファイルをそのままデプロイすると、他のアプリのアクセスを拒否する可能性があります。
-5. ルール検証、独立した2セッションでの同期・競合・再接続の確認を終えてから公開します。現在は Firebase プロジェクト未指定・未認証のため、実バックエンドと Rules の許可／拒否は未検証です。
+5. ルール検証、独立した2セッションでの同期・競合・再接続の確認を終えてから公開します。匿名ログインの実接続確認は `ADMIN_ONLY_OPERATION` で拒否されました。Authentication の匿名プロバイダの有効化が必要です。共有ドキュメントの読み取り・書き込みと Rules の許可／拒否は未検証です。
 
 共有記録は revision と全月の JSON を1ドキュメントに保存します。更新はトランザクションで revision を照合します。容量上限は JSON 700KB です。初回接続では端末内の記録を自動送信せず、共有データが存在する場合は読み込み前に元の記録を退避します。共有先が空の場合は「共有先に保存」で明示的に初期登録します。
 
@@ -47,3 +47,5 @@ GitHub Pages は `.github/workflows/pages.yml` で npm のインストール・�
 公式資料: [Web SDK 設定](https://firebase.google.com/docs/web/setup)、[匿名認証](https://firebase.google.com/docs/auth/web/anonymous-auth)、[Firestore トランザクション](https://firebase.google.com/docs/firestore/manage-data/transactions)。
 
 共有保存の競合・保存中の追加入力・通信失敗時の保持は `npm test` の3テストで確認しました。模擬 Firebase を使った独立した2ブラウザの共有UI検証でも、反映・競合拒否・復元前のバックアップ・再同期を確認しています。実際の Firestore 接続と Rules の検証は未実施です。
+
+匿名ログインの設定場所: Firebase Console の `pocolog-baec6` → Authentication → Sign-in method → 匿名 → 有効にする → 保存。認証の接続確認では共有ドキュメントへの書き込み・ルール変更・公開は行っていません。
