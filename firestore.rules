@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public collaborative table: anonymous Firebase users may edit only this document.
+    match /pocolog/shared {
+      function signedIn() { return request.auth != null; }
+      function validRecord() {
+        return request.resource.data.keys().hasOnly(['revision', 'payload', 'updatedAt'])
+          && request.resource.data.revision is int
+          && request.resource.data.payload is string
+          && request.resource.data.payload.size() <= 700000
+          && request.resource.data.updatedAt == request.time;
+      }
+      allow read: if signedIn();
+      allow create: if signedIn() && validRecord() && request.resource.data.revision == 1;
+      allow update: if signedIn() && validRecord()
+        && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
+    }
+  }
+}

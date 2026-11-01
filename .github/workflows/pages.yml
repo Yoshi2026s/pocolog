@@ -18,14 +18,16 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
       - uses: actions/configure-pages@v5
-      - name: Prepare static site
-        run: |
-          mkdir -p public
-          cp index.html app.js public/
-          touch public/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: public
+          path: dist
       - uses: actions/deploy-pages@v4
         id: deploy

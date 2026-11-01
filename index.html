@@ -7,9 +7,12 @@
 </style>
 <header><h1>◉ ポコログ</h1><small>応援の記録を、わかりやすく。</small></header>
 <main><h2>応援記録</h2><p class="intro">ライバーごとに、自分の各アカウントのエール数を記録しましょう。</p><div class="toolbar"><label>記録する月 <input type="month" id="month" aria-label="記録する月"></label></div>
+<section class="panel" style="margin-bottom:24px"><strong>みんなで共有</strong><p id="sharedStatus" role="status">共有保存の設定を確認しています…</p><button id="sharedSave" class="primary" disabled>共有先に保存</button> <button id="sharedReload" disabled>共有の最新版を読込</button><p class="note">共有先に接続した場合、変更後に「共有先に保存」を押すと他の人にも反映されます。</p></section>
 <div class="cards"><div class="card"><span>記録しているライバー</span><strong id="people"></strong></div><div class="card"><span>エール合計（K）</span><strong id="sum"></strong></div><div class="card"><span>仮チェックの件数</span><strong id="circles"></strong></div><div class="card"><span>記録済みのセル</span><strong id="filled"></strong></div></div>
 <section class="panel"><div class="toolbar"><button class="primary" id="addRow">＋ ライバーを追加</button><button id="addCol">＋ アカウントを追加</button><button id="refresh" title="入力を保存して画面を再読み込み">更新</button><button id="download">バックアップ保存</button><label class="file">バックアップ読込<input type="file" id="upload" accept="application/json,.json" hidden></label><button id="csv">選択月をCSV出力</button><span id="status" role="status"></span></div>
-<div class="table-wrap"><table id="grid" aria-label="応援記録の編集表"></table></div><p class="note">ライバー名・アカウント名・エール数（K）・メモは直接編集できます。数字は K 単位で入力します（例：10 は 10K）。空欄と 0 は区別します。○・〇・◯ は仮チェックとして件数のみ集計し、エール合計（K）には含めません。<br>入力はこのブラウザに自動保存します。別の端末へ移すときや大切な記録の保管には、バックアップ保存をご利用ください。</p></section>
+<div class="table-wrap"><table id="grid" aria-label="応援記録の編集表"></table></div><p class="note">ライバー名・アカウント名・エール数（K）・メモは直接編集できます。数字は K 単位で入力します（例：10 は 10K）。空欄と 0 は区別します。○・〇・◯ は仮チェックとして件数のみ集計し、エール合計（K）には含めません。<br>入力はこのブラウザに自動保存します。共有先への反映は「共有先に保存」で行います。大切な記録の保管には、バックアップ保存をご利用ください。</p></section>
 <div class="stats"><section class="panel"><h2>ライバーごとの集計</h2><select id="metric" aria-label="集計方法"><option value="number">エール合計（K）</option><option value="circle">仮チェックの件数</option><option value="filled">記録済み件数</option></select><div id="ranking"></div></section><section class="panel"><h2>自分のアカウントごとの集計</h2><p class="note">エール合計（K） ／ 仮チェックの件数 ／ 記録済み件数</p><div id="columns"></div></section></div></main>
+<script src="firebase-config.js"></script>
 <script src="app.js"></script>
+<script type="module" src="shared.js"></script>
 </html>
