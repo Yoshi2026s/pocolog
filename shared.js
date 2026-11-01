@@ -16,6 +16,22 @@ archiveButton.onclick = () => {
   catch { message('接続前の記録を読み出せませんでした。'); }
 };
 const state = new SharedState();
+const pendingKey = 'pocolog.pending.v1', revisionKey = 'pocolog.shared-revision.v1';
+try {
+  const localBook = JSON.parse(localStorage.getItem('pocolog.v1'));
+  if (localStorage.getItem(pendingKey) === '1' && api.validBook(localBook)) {
+    const revision = Number(localStorage.getItem(revisionKey));
+    state.revision = Number.isSafeInteger(revision) && revision >= 0 ? revision : 0;
+    state.edit();
+  }
+} catch {}
+function retainSyncState(revision, clean) {
+  try {
+    localStorage.setItem(revisionKey, String(revision));
+    if (clean) localStorage.removeItem(pendingKey);
+  } catch {}
+}
+
 let connected = false, busy = false, ref;
 function message(text) { status.textContent = text; }
 function buttons() { saveButton.disabled = !connected || busy; reloadButton.disabled = !connected || busy; }
@@ -26,11 +42,12 @@ function backupLocal() {
   archiveButton.hidden = false;
 }
 function apply(record) {
-  if (!record) { message('共有の記録はまだありません。「共有先に保存」で現在の表を登録できます。'); return; }
+  if (!record) { retainSyncState(0, !state.dirty); message('共有の記録はまだありません。「共有先に保存」で現在の表を登録できます。'); return; }
   const next = JSON.parse(record.payload);
   if (!api.validBook(next)) throw Error('共有データの形式を確認できません。');
   backupLocal();
   api.setBook(next);
+  retainSyncState(record.revision, true);
   message('共有先と同期済み');
 }
 function read(snapshot) {
@@ -62,6 +79,7 @@ saveButton.onclick = async () => {
     if (!state.latest || state.latest.revision <= state.revision) {
       state.latest = { revision: state.revision, payload };
     }
+    retainSyncState(state.revision, clean);
     message(clean ? '共有先に保存しました' : '保存中に追加した変更が未共有です。もう一度保存してください。');
   } catch (error) { message(`共有保存できませんでした。${error.message} 入力はこのブラウザに残っています。`); }
   finally { busy = false; buttons(); }
@@ -111,6 +129,7 @@ async function start() {
         const record = read(snapshot);
         if (state.receive(record)) apply(record);
         else if ((record?.revision ?? 0) !== state.revision) message('共有先に更新があります。未共有の入力を確認してから最新版を読み込んでください。');
+        else message('未共有の入力を復元しました。「共有先に保存」で反映できます。');
         connected = true; api.setEditing(true); buttons();
       } catch (error) { connected = false; api.setEditing(true); buttons(); message(error.message); }
     }, error => {
