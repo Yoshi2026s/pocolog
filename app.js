@@ -3,7 +3,7 @@ const photoLivers = ['どんちゃん','かつにぃ','ともちゃん','あす�
 const initial = {columns:['もえ','こじ','こた','寿司','イカ','焼肉','ケン','ガヤ','お餅','アラン','シオン','レオン','ヨシ'],rows:[]};
 const $ = id => document.getElementById(id);
 let data, book;
-function valid(d){return d && Array.isArray(d.columns) && d.columns.length<=100 && d.columns.every(c=>typeof c==='string') && Array.isArray(d.rows) && d.rows.length<=10000 && d.rows.every(r=>typeof r.name==='string' && typeof r.memo==='string' && Array.isArray(r.values) && r.values.length===d.columns.length && r.values.every(v=>typeof v==='string'));}
+function valid(d){return d && Array.isArray(d.columns) && d.columns.length<=100 && d.columns.every(c=>typeof c==='string') && Array.isArray(d.rows) && d.rows.length<=10000 && d.rows.every(r=>typeof r.name==='string' && typeof r.memo==='string' && (r.closingTime===undefined||typeof r.closingTime==='string') && (r.releaseDate===undefined||typeof r.releaseDate==='string') && Array.isArray(r.values) && r.values.length===d.columns.length && r.values.every(v=>typeof v==='string'));}
 const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit'}).format(new Date());
 const monthValid=m=>/^\d{4}-(0[1-9]|1[0-2])$/.test(m);
 function validBook(b){return b && b.version===2 && monthValid(b.currentMonth) && b.months && typeof b.months==='object' && !Array.isArray(b.months) && Object.keys(b.months).length<=1200 && Object.entries(b.months).every(([m,d])=>monthValid(m)&&valid(d)) && valid(b.months[b.currentMonth]);}
@@ -31,7 +31,7 @@ function addPhotoLivers(){
 addPhotoLivers();
 data=book.months[book.currentMonth];
 $('month').value=book.currentMonth;
-$('month').onchange=()=>{const m=$('month').value;if(!monthValid(m))return;const created=!book.months[m];if(created)book.months[m]={columns:[...data.columns],rows:data.rows.map(r=>({name:r.name,memo:'',values:data.columns.map(()=>'')}))};book.currentMonth=m;data=book.months[m];save(created);render();};
+$('month').onchange=()=>{const m=$('month').value;if(!monthValid(m))return;const created=!book.months[m];if(created)book.months[m]={columns:[...data.columns],rows:data.rows.map(r=>({name:r.name,memo:'',closingTime:r.closingTime||'',releaseDate:'',values:data.columns.map(()=>'')}))};book.currentMonth=m;data=book.months[m];save(created);render();};
 const monthly=document.createElement('section');monthly.className='panel';monthly.style.marginTop='24px';const monthlyTitle=document.createElement('h2');monthlyTitle.textContent='月別の実績（K）';const monthlyBars=document.createElement('div');monthlyBars.id='monthly';monthly.append(monthlyTitle,monthlyBars);$('summaryContent').append(monthly);
 function measure(values){const counts=values.reduce((a,v)=>{const s=v.trim();if(s){a.filled++;if(/^[○〇◯]$/.test(s))a.circle++;else if(/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(s)){const n=Number(s);if(Number.isFinite(n)&&Number.isFinite(a.number+n))a.number+=n;}}return a;},{number:0,circle:0,filled:0});return {...counts,...PocoCoins.summarize(values)};}
 const fmt=n=>n.toLocaleString('ja-JP',{maximumFractionDigits:10});
@@ -111,11 +111,33 @@ function showCoinDialog(kind,index){
  $('coinDialog').showModal();
 }
 $('coinDialogClose').onclick=()=>$('coinDialog').close();
+let scheduleRow=null;
+function showSchedule(row){
+ scheduleRow=row;$('scheduleTitle').textContent=`${row.name}の日程`;
+ $('closingTimeInput').value=row.closingTime||'';$('releaseDateInput').value=row.releaseDate||'';
+ $('scheduleDialog').showModal();
+}
+function scheduleField(row,field,label){
+ const button=document.createElement('button');button.type='button';button.className='schedule-field';button.setAttribute('aria-label',`${row.name}の${label}`);button.title=row[field]||'';
+ const value=row[field]||'';
+ if(field==='releaseDate'&&value.includes(' ')){
+  const [date,...time]=value.split(' ');const day=document.createElement('span');day.textContent=date;const clock=document.createElement('span');clock.textContent=time.join(' ');button.append(day,clock);
+ }else{button.textContent=value;}
+ button.onclick=()=>showSchedule(row);return button;
+}
+$('scheduleClose').onclick=()=>$('scheduleDialog').close();
+$('scheduleDialog').addEventListener('close',()=>{scheduleRow=null;});
+$('scheduleForm').onsubmit=event=>{
+ event.preventDefault();if(!scheduleRow||!data.rows.includes(scheduleRow))return;
+ scheduleRow.closingTime=$('closingTimeInput').value.trim();scheduleRow.releaseDate=$('releaseDateInput').value.trim();save();render();
+};
 function render(){
  closeCheerPicker();
  if($('coinDialog').open)$('coinDialog').close();
+ if($('scheduleDialog').open)$('scheduleDialog').close();
  const table=$('grid');table.replaceChildren();const head=table.createTHead().insertRow();
  cell(head,'th').textContent='ライバー名';
+ cell(head,'th','closing-col').textContent='締め時間';cell(head,'th','release-col').textContent='解禁日';
  data.columns.forEach((c,j)=>{
   const th=cell(head,'th');th.append(nameControls(c,'アカウント',()=>showCoinDialog('account',j),v=>{data.columns[j]=v;}));
   const b=document.createElement('button');b.textContent='削除';b.className='delete-column';b.setAttribute('aria-label',`${c}列を削除`);
@@ -126,6 +148,7 @@ function render(){
  const body=table.createTBody();
  data.rows.forEach((r,i)=>{
   const tr=body.insertRow();cell(tr,'td','name').append(nameControls(r.name,'ライバー',()=>showCoinDialog('liver',i),v=>r.name=v));
+  cell(tr,'td','closing-col').append(scheduleField(r,'closingTime','締め時間'));cell(tr,'td','release-col').append(scheduleField(r,'releaseDate','解禁日'));
   r.values.forEach((v,j)=>{
    const td=cell(tr);td.append(cheerSelect(v,`${r.name}・${data.columns[j]}`,v=>r.values[j]=v));
   });
@@ -176,7 +199,7 @@ $('refresh').onclick=()=>{try{localStorage.setItem(KEY,JSON.stringify(book));loc
 function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('download').onclick=()=>download(JSON.stringify(book,null,2),'application/json','pocolog-backup.json');
 $('upload').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>10000000)throw Error();const next=JSON.parse(await f.text());if(!validBook(next)&&!valid(next))throw Error();if(confirm('全月の記録をバックアップの内容で置き換えますか？')){book=validBook(next)?next:{version:2,currentMonth:book.currentMonth,months:{[book.currentMonth]:next}};addMoeAccount();addPhotoLivers();data=book.months[book.currentMonth];$('month').value=book.currentMonth;save();render();}}catch{alert('読み込めませんでした。ポコログのJSONバックアップを選択してください。');}e.target.value='';};
-$('csv').onclick=()=>{const quote=s=>'"'+String(s).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';const rows=[['ライバー名',...data.columns,'エール合計（K）','必要コイン（換算済み分）','未算定セル数','メモ'],...data.rows.map(r=>{const total=measure(r.values);return [r.name,...r.values,total.number,total.coins,total.unknown,r.memo];})];download('\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog.csv');};
+$('csv').onclick=()=>{const quote=s=>'"'+String(s).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';const rows=[['ライバー名','締め時間','解禁日',...data.columns,'エール合計（K）','必要コイン（換算済み分）','未算定セル数','メモ'],...data.rows.map(r=>{const total=measure(r.values);return [r.name,r.closingTime||'',r.releaseDate||'',...r.values,total.number,total.coins,total.unknown,r.memo];})];download('\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog.csv');};
 const reference=$('coinReference');const referenceHead=reference.createTHead().insertRow();
 cell(referenceHead,'th').textContent='エール（K）';cell(referenceHead,'th').textContent='必要コイン（条件1）';
 const referenceBody=reference.createTBody();PocoCoins.tiers.forEach(([level,coins])=>{const row=referenceBody.insertRow();cell(row).textContent=fmt(level);cell(row).textContent=fmt(coins);});
