@@ -38,11 +38,49 @@ const fmt=n=>n.toLocaleString('ja-JP',{maximumFractionDigits:10});
 function save(edited=true){try{localStorage.setItem(KEY,JSON.stringify(book));$('status').textContent='このブラウザに保存済み';}catch{$('status').textContent='保存できません。バックアップを保存してください。';}if(edited)window.dispatchEvent(new Event('pocolog:edit'));}
 function input(value,label,onchange){const el=document.createElement('input');el.value=value;el.setAttribute('aria-label',label);el.addEventListener('input',()=>{onchange(el.value);save();stats();});return el;}
 function cell(row,tag='td',cls=''){const el=document.createElement(tag);el.className=cls;row.append(el);return el;}
+function cheerSelect(value,label,onchange){
+ const select=document.createElement('select');select.className='cheer-select';select.setAttribute('aria-label',label);
+ for(const choice of ['〇',...Array.from({length:48},(_,i)=>String(i+1)),'']){
+  const option=document.createElement('option');option.value=choice;option.textContent=choice||'未記入（クリア）';select.append(option);
+ }
+ const display=/^[○〇◯]$/.test(value.trim())?'〇':value;
+ if(![...select.options].some(option=>option.value===display)){
+  const legacy=document.createElement('option');legacy.value=display;legacy.textContent=display+'（現在値）';select.append(legacy);
+ }
+ select.value=display;
+ select.onchange=()=>{onchange(select.value);save();stats();};return select;
+}
+function nameControls(name,label,show,rename){
+ const wrapper=document.createElement('div');
+ const button=document.createElement('button');button.type='button';button.className='name-trigger';button.textContent=name||'（未設定）';button.setAttribute('aria-label',`${label} ${name}の必要コイン合計`);button.onclick=show;
+ const edit=document.createElement('button');edit.type='button';edit.className='rename';edit.textContent='編集';edit.setAttribute('aria-label',`${label} ${name}の名前を編集`);
+ edit.onclick=()=>{const next=prompt(`${label}を編集`,name);if(next===null)return;rename(next);save();render();};wrapper.append(button,edit);return wrapper;
+}
+function showCoinDialog(kind,index){
+ const isAccount=kind==='account';
+ const name=isAccount?data.columns[index]:data.rows[index].name;
+ const entries=isAccount?data.rows.map(row=>({name:row.name,value:row.values[index]})):data.columns.map((name,j)=>({name,value:data.rows[index].values[j]}));
+ const total=measure(entries.map(entry=>entry.value));
+ $('coinDialogTitle').textContent=`${name||'（未設定）'}の必要コイン合計`;
+ $('coinDialogMonth').textContent=`${book.currentMonth} ／ ${isAccount?'アカウント別':'ライバー別'}`;
+ $('coinDialogTotal').textContent=fmt(total.coins);
+ $('coinDialogUnknown').textContent=total.unknown?`表にない値など${total.unknown}件は未算定です。表示は換算できた分の合計です。`:'';
+ $('coinDialogCheer').textContent=`エール合計 ${fmt(total.number)} K ／ 仮チェック ${total.circle}件`;
+ const table=$('coinDialogBreakdown');table.replaceChildren();const header=table.createTHead().insertRow();
+ for(const title of [isAccount?'ライバー':'アカウント','エール（K）','必要コイン'])cell(header,'th').textContent=title;
+ const body=table.createTBody();entries.forEach(entry=>{
+  const row=body.insertRow();cell(row).textContent=entry.name;cell(row).textContent=entry.value||'—';
+  const converted=PocoCoins.convert(entry.value);cell(row).textContent=converted.status==='known'?fmt(converted.coins):['check','blank'].includes(converted.status)?'—':'未算定';
+ });
+ $('coinDialog').showModal();
+}
+$('coinDialogClose').onclick=()=>$('coinDialog').close();
 function render(){
+ if($('coinDialog').open)$('coinDialog').close();
  const table=$('grid');table.replaceChildren();const head=table.createTHead().insertRow();
  cell(head,'th').textContent='ライバー名';
  data.columns.forEach((c,j)=>{
-  const th=cell(head,'th');th.append(input(c,`アカウント ${j+1}`,v=>{data.columns[j]=v;}));
+  const th=cell(head,'th');th.append(nameControls(c,'アカウント',()=>showCoinDialog('account',j),v=>{data.columns[j]=v;}));
   const b=document.createElement('button');b.textContent='削除';b.setAttribute('aria-label',`${c}列を削除`);
   b.onclick=()=>{if(confirm(`「${data.columns[j]}」列とその記録を削除しますか？`)){data.columns.splice(j,1);data.rows.forEach(r=>r.values.splice(j,1));save();render();}};
   th.append(document.createElement('br'),b);
@@ -50,9 +88,9 @@ function render(){
  cell(head,'th').textContent='合計（K）';cell(head,'th').textContent='必要コイン';cell(head,'th').textContent='メモ';cell(head,'th');
  const body=table.createTBody();
  data.rows.forEach((r,i)=>{
-  const tr=body.insertRow();cell(tr,'td','name').append(input(r.name,`ライバー名 ${i+1}`,v=>r.name=v));
+  const tr=body.insertRow();cell(tr,'td','name').append(nameControls(r.name,'ライバー',()=>showCoinDialog('liver',i),v=>r.name=v));
   r.values.forEach((v,j)=>{
-   const td=cell(tr);td.append(input(v,`${r.name}・${data.columns[j]}`,v=>r.values[j]=v));
+   const td=cell(tr);td.append(cheerSelect(v,`${r.name}・${data.columns[j]}`,v=>r.values[j]=v));
    const hint=document.createElement('small');hint.className='coin-hint';hint.dataset.cellRow=i;hint.dataset.cellCol=j;td.append(hint);
   });
   const total=cell(tr,'td','total');total.dataset.row=i;
@@ -121,6 +159,6 @@ window.pocolog = {
   data=book.months[book.currentMonth];$('month').value=book.currentMonth;
   save(false);render();
  },
- setEditing(enabled){document.querySelectorAll('#grid input,#grid button,#addRow,#addCol,#upload,#month').forEach(el=>el.disabled=!enabled);},
+ setEditing(enabled){document.querySelectorAll('#grid input,#grid select,#grid button,#addRow,#addCol,#upload,#month').forEach(el=>el.disabled=!enabled);},
  downloadBackup:(backup=book)=>download(JSON.stringify(backup,null,2),'application/json','pocolog-unsynced-backup.json')
 };
