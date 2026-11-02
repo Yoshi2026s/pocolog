@@ -1,6 +1,6 @@
 const KEY = 'pocolog.v1';
 const photoLivers = ['どんちゃん','かつにぃ','ともちゃん','あすぽん','むぎたん','しーたま','れなぴ','ラピママ','武井','こたちゃま','みさき','EMMA','猫','あおいちゃん','おはぎ','スパたん','たぁ坊','アルちゃん','スピカちゃん'];
-const initial = {columns:['もえ','こじ','こた','寿司','イカ','焼肉','ケン','ガヤ','お餅','アラン','シオン','レオン','ヨシ'],rows:[]};
+const initial = {columns:['こじ','こた','もえ','寿司','イカ','焼肉','ケン','ガヤ','お餅','アラン','シオン','レオン','ヨシ'],rows:[]};
 const $ = id => document.getElementById(id);
 let data, book;
 function valid(d,month){return d && Array.isArray(d.columns) && d.columns.length<=100 && d.columns.every(c=>typeof c==='string') && Array.isArray(d.rows) && d.rows.length<=10000 && d.rows.every(r=>typeof r.name==='string' && typeof r.memo==='string' && (r.closingTime===undefined||typeof r.closingTime==='string') && (r.releaseDate===undefined||typeof r.releaseDate==='string') && Array.isArray(r.values) && r.values.length===d.columns.length && r.values.every(v=>typeof v==='string') && PocoCalendar.validSchedule(r.schedule,month)) && PocoCalendar.validAccounts(d,month);}
@@ -11,10 +11,10 @@ try{const saved=localStorage.getItem(KEY);const parsed=saved?JSON.parse(saved):n
 function addMoeAccount(){
  if(book.accountLayoutVersion===1)return;
  for(const month of Object.values(book.months)){
-  const koji=month.columns.indexOf('こじ');
-  if(koji<0||month.columns.includes('もえ'))continue;
-  month.columns.splice(koji,0,'もえ');if(month.accountDetails)month.accountDetails.splice(koji,0,{memo:'',schedule:{}});
-  month.rows.forEach(row=>row.values.splice(koji,0,''));
+  const kota=month.columns.indexOf('こた');
+  if(kota<0||month.columns.includes('もえ'))continue;
+  month.columns.splice(kota+1,0,'もえ');if(month.accountDetails)month.accountDetails.splice(kota+1,0,{memo:'',schedule:{}});
+  month.rows.forEach(row=>row.values.splice(kota+1,0,''));
  }
  book.accountLayoutVersion=1;
 }
