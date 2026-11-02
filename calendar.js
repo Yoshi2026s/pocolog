@@ -53,5 +53,34 @@
   function actualTotals(entity){
     return Object.values(entity.actuals||{}).reduce((total,value)=>({days:total.days+Number(value.earnedDay),minutes:total.minutes+(value.minutes??0),cheerK:total.cheerK+(value.cheerK??0),records:total.records+1,timeRecords:total.timeRecords+Number(value.minutes!==null),cheerRecords:total.cheerRecords+Number(value.cheerK!==null)}),{days:0,minutes:0,cheerK:0,records:0,timeRecords:0,cheerRecords:0});
   }
-  globalThis.PocoCalendar = Object.freeze({ monthInfo, dates, validSchedule, validAccounts, accountDetails, setDay, validActuals, setActual, actualTotals });
+  function splitActualRange(date,start,end,nextDay,month){
+    const parse=value=>{if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))return null;const [h,m]=value.split(':').map(Number);return h*60+m;};
+    const from=parse(start),to=parse(end);
+    if(!dates(month).some(item=>item.date===date)||from===null||to===null)throw Error('開始・終了時刻を入力してください。');
+    const duration=to+(nextDay?1440:0)-from;
+    if(duration<=0||duration>1440)throw Error('終了が翌日の場合は「翌日まで」にチェックしてください。時間は24時間以内です。');
+    const changes={};
+    if(!nextDay)changes[date]=duration;
+    else{
+      changes[date]=1440-from;
+      if(to>0){const next=new Date(date+'T00:00:00Z');next.setUTCDate(next.getUTCDate()+1);const key=next.toISOString().slice(0,10);
+        if(!key.startsWith(month+'-'))throw Error('月をまたぐ時間は、それぞれの記録月で入力してください。');
+        changes[key]=to;
+      }
+    }
+    return changes;
+  }
+  function addActualMinutes(actuals,changes,month){
+    if(!validActuals(actuals,month))throw Error('実績データを確認してください。');
+    const result=structuredClone(actuals||{}),allowed=new Set(dates(month).map(item=>item.date));
+    for(const [date,delta] of Object.entries(changes)){
+      if(!allowed.has(date)||!Number.isInteger(delta))throw Error('日付・加算する時間を確認してください。');
+      const previous=result[date]||{earnedDay:false,minutes:null,cheerK:null};
+      const minutes=Math.max(0,(previous.minutes??0)+delta);
+      if(minutes>1440)throw Error('加算後の時間が1日24時間を超えます。');
+      result[date]={...previous,earnedDay:previous.earnedDay||minutes>0,minutes};
+    }
+    return result;
+  }
+  globalThis.PocoCalendar = Object.freeze({ monthInfo, dates, validSchedule, validAccounts, accountDetails, setDay, validActuals, setActual, actualTotals, splitActualRange, addActualMinutes });
 })();

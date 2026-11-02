@@ -54,3 +54,21 @@ test('earned days are counted once and edits replace values, distinguishing blan
  assert.equal(actualTotals(row).days,1);assert.equal(actualTotals(row).minutes,0);assert.equal(row.memo,'保持');assert.equal(row.schedule['2026-11-03'],'予定');
  assert.deepEqual(JSON.parse(JSON.stringify(row)).actuals,row.actuals);
 });
+
+test('time ranges split midnight correctly and reject invalid or cross-month ranges',()=>{
+ const {splitActualRange}=PocoCalendar;
+ assert.deepEqual(splitActualRange('2026-11-03','09:00','10:15',false,'2026-11'),{'2026-11-03':75});
+ assert.deepEqual(splitActualRange('2026-11-03','23:30','01:15',true,'2026-11'),{'2026-11-03':30,'2026-11-04':75});
+ assert.deepEqual(splitActualRange('2026-11-30','23:00','00:00',true,'2026-11'),{'2026-11-30':60});
+ assert.deepEqual(splitActualRange('2028-02-28','23:00','01:00',true,'2028-02'),{'2028-02-28':60,'2028-02-29':60});
+ for(const args of [['2026-11-03','23:00','01:00',false],['2026-11-03','09:00','09:00',false],['2026-11-03','09:00','10:00',true],['2026-11-30','23:00','01:00',true],['2026-11-03','25:00','01:00',true]])assert.throws(()=>splitActualRange(...args,'2026-11'));
+});
+test('time additions preserve cheers and dates, count once, floor subtraction and fail atomically',()=>{
+ const {addActualMinutes,actualTotals}=PocoCalendar;
+ const before={'2026-11-03':{earnedDay:true,minutes:30,cheerK:10},'2026-11-04':{earnedDay:true,minutes:1400,cheerK:2}};const snapshot=structuredClone(before);
+ assert.throws(()=>addActualMinutes(before,{'2026-11-03':15,'2026-11-04':60},'2026-11'));
+ assert.deepEqual(before,snapshot);
+ const next=addActualMinutes(before,{'2026-11-03':60},'2026-11');assert.equal(next['2026-11-03'].minutes,90);assert.equal(next['2026-11-03'].cheerK,10);assert.equal(actualTotals({actuals:next}).days,2);
+ assert.equal(addActualMinutes(before,{'2026-11-03':-60},'2026-11')['2026-11-03'].minutes,0);
+ assert.throws(()=>addActualMinutes(before,{'2026-12-01':10},'2026-11'));
+});

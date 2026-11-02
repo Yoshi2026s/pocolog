@@ -324,21 +324,88 @@ function selectEntityDay(date){
  $('todayPlanDay').disabled=!todayDate.startsWith(currentEntity.month+'-');
  renderEntityCalendar();
 }
+let lastActualAction=null;
+function focusActualEditor(){
+ if(currentEntity?.kind!=='liver')return;
+ const dialog=$('coinDialog'),editor=$('liverActualEditor'),header=dialog.querySelector('.dialog-header');
+ dialog.scrollTop+=editor.getBoundingClientRect().top-dialog.getBoundingClientRect().top-header.getBoundingClientRect().height-12;
+ editor.tabIndex=-1;editor.focus({preventScroll:true});
+}
+$('goActualEntry').onclick=focusActualEditor;
+$('actualPreviousDay').onclick=()=>{movePlanDay(-1);focusActualEditor();};
+$('actualNextDay').onclick=()=>{movePlanDay(1);focusActualEditor();};
+$('actualToday').onclick=()=>{$('todayPlanDay').click();focusActualEditor();};
+function updateActualTools(){
+ const entity=entityDetails();if(currentEntity?.kind!=='liver'||!entity)return;
+ const dates=PocoCalendar.dates(currentEntity.month),index=dates.findIndex(item=>item.date===currentEntity.date),value=entity.actuals?.[currentEntity.date];
+ $('actualPreviousDay').disabled=index<1;$('actualNextDay').disabled=index===dates.length-1;
+ const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());$('actualToday').disabled=!today.startsWith(currentEntity.month+'-');
+ $('copyPreviousActualTime').disabled=index<1||entity.actuals?.[dates[index-1].date]?.minutes==null;
+ $('actualMinus15').disabled=!(value?.minutes>0);$('clearActualDay').disabled=!value;
+ const canUndo=lastActualAction&&lastActualAction.row===entity&&lastActualAction.table===data&&JSON.stringify(entity.actuals||{})===JSON.stringify(lastActualAction.after);
+ $('undoActualAction').hidden=!canUndo;
+}
+function applyActualAction(next,message){
+ const entity=entityDetails();if(currentEntity?.kind!=='liver'||!entity)return;
+ const before=structuredClone(entity.actuals||{});if(!PocoCalendar.validActuals(next,currentEntity.month))throw Error('実績の内容を確認してください。');
+ entity.actuals=next;loadActualDay(entity,currentEntity.date);renderEntityCalendar();stats();plannerSaved(message);
+ lastActualAction={row:entity,table:data,before,after:structuredClone(next)};updateActualTools();
+}
+function addActualTime(changes,message){
+ try{const entity=entityDetails();if(currentEntity?.kind!=='liver'||!entity)return;applyActualAction(PocoCalendar.addActualMinutes(entity.actuals,changes,currentEntity.month),message);}
+ catch(error){$('actualError').textContent=error.message;}
+}
+for(const [id,minutes] of [['actualPlus15',15],['actualPlus30',30],['actualPlus60',60],['actualMinus15',-15]])$(id).onclick=()=>{
+ if(!currentEntity?.date)return;addActualTime({[currentEntity.date]:minutes},`${minutes>0?'+':''}${minutes}分を反映しました。`);
+};
+$('copyPreviousActualTime').onclick=()=>{
+ const entity=entityDetails();if(currentEntity?.kind!=='liver'||!entity)return;
+ const days=PocoCalendar.dates(currentEntity.month),index=days.findIndex(item=>item.date===currentEntity.date),source=entity.actuals?.[days[index-1]?.date];
+ if(source?.minutes==null)return;const next=structuredClone(entity.actuals||{}),old=next[currentEntity.date]||{earnedDay:false,minutes:null,cheerK:null};
+ next[currentEntity.date]={...old,earnedDay:old.earnedDay||source.minutes>0,minutes:source.minutes};
+ applyActualAction(next,'前日の時間をコピーしました。エールは変更していません。');
+};
+$('clearActualDay').onclick=()=>{
+ const entity=entityDetails();if(currentEntity?.kind!=='liver'||!entity)return;const next=structuredClone(entity.actuals||{});delete next[currentEntity.date];applyActualAction(next,'この日の実績を消去しました。「元に戻す」で復元できます。');
+};
+$('undoActualAction').onclick=()=>{
+ const entity=entityDetails(),action=lastActualAction;if(!action||action.row!==entity||action.table!==data||JSON.stringify(entity.actuals||{})!==JSON.stringify(action.after))return;
+ entity.actuals=structuredClone(action.before);lastActualAction=null;loadActualDay(entity,currentEntity.date);renderEntityCalendar();stats();plannerSaved('直前の実績操作を元に戻しました。');
+};
+function previewActualRange(event){
+ if(currentEntity?.kind!=='liver')return;
+ const start=$('actualRangeStart').value,end=$('actualRangeEnd').value;
+ if(event?.target!==$('actualRangeNextDay')&&start&&end&&end<start)$('actualRangeNextDay').checked=true;
+ $('applyActualRange').disabled=true;
+ if(!start||!end){$('actualRangePreview').textContent='開始・終了を選ぶと計算します。';return;}
+ try{const changes=PocoCalendar.splitActualRange(currentEntity.date,start,end,$('actualRangeNextDay').checked,currentEntity.month);PocoCalendar.addActualMinutes(entityDetails().actuals,changes,currentEntity.month);
+ const total=Object.values(changes).reduce((sum,n)=>sum+n,0);$('actualRangePreview').textContent=`${Math.floor(total/60)}時間${total%60}分 ／ ${Object.keys(changes).length}日分に加算`;$('applyActualRange').disabled=false;
+ }catch(error){$('actualRangePreview').textContent=error.message;}
+}
+for(const id of ['actualRangeStart','actualRangeEnd','actualRangeNextDay'])$(id).addEventListener('input',previewActualRange);
+$('applyActualRange').onclick=()=>{
+ if(currentEntity?.kind!=='liver')return;
+ try{const changes=PocoCalendar.splitActualRange(currentEntity.date,$('actualRangeStart').value,$('actualRangeEnd').value,$('actualRangeNextDay').checked,currentEntity.month);addActualTime(changes,'開始・終了時刻から計算した時間を加算しました。');}
+ catch(error){$('actualRangePreview').textContent=error.message;}
+};
 function updateActualTotals(){
  if(currentEntity?.kind!=='liver')return;
  const total=PocoCalendar.actualTotals(entityDetails());
  $('actualTotalDays').textContent=total.records?`${total.days}日`:'未記録';
  $('actualTotalTime').textContent=total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'未記録';
  $('actualTotalCheer').textContent=total.cheerRecords?`${fmt(total.cheerK)} K`:'未記録';
+ const history=$('actualHistoryRows');history.replaceChildren();for(const [date,value] of Object.entries(entityDetails().actuals||{}).sort(([a],[b])=>a.localeCompare(b))){const button=document.createElement('button');button.type='button';button.textContent=`${Number(date.slice(5,7))}/${Number(date.slice(8))} ／ ${value.earnedDay?'1日':'日数対象外'} ／ ${value.minutes===null?'時間未記入':`${Math.floor(value.minutes/60)}時間${value.minutes%60}分`} ／ ${value.cheerK===null?'エール未記入':fmt(value.cheerK)+' K'}`;button.onclick=()=>{selectEntityDay(date);focusActualEditor();};history.append(button);}
+ if(!history.childElementCount)history.textContent='実績はまだありません。';updateActualTools();
 }
 function loadActualDay(entity,date){
  if(currentEntity.kind!=='liver')return;
+ lastActualAction=null;$('actualRangeStart').value='';$('actualRangeEnd').value='';$('actualRangeNextDay').checked=false;$('actualRangePanel').open=false;
  const value=entity.actuals?.[date];
  $('actualDayTitle').textContent=`${Number(date.slice(5,7))}月${Number(date.slice(8))}日の獲得実績`;
  $('actualEarnedDay').checked=value?.earnedDay||false;
  $('actualHours').value=value?.minutes==null?'':Math.floor(value.minutes/60);
  $('actualMinutes').value=value?.minutes==null?'':value.minutes%60;
- $('actualCheer').value=value?.cheerK??'';$('actualError').textContent='';updateActualTotals();
+ $('actualCheer').value=value?.cheerK??'';$('actualError').textContent='';updateActualTotals();previewActualRange();
 }
 function saveActualDay(event){
  if(currentEntity?.kind!=='liver')return;const entity=entityDetails();if(!entity)return;
@@ -348,8 +415,8 @@ function saveActualDay(event){
  if(duration>1440){$('actualError').textContent='1日の時間は24時間以内で入力してください。';return;}
  const cheerK=cheer.value===''?null:Number(cheer.value);
  if(event.target!==$('actualEarnedDay')&&(duration>0||cheerK>0))$('actualEarnedDay').checked=true;
- PocoCalendar.setActual(entity,currentEntity.date,{earnedDay:$('actualEarnedDay').checked,minutes:duration,cheerK},currentEntity.month);
- $('actualError').textContent='';updateActualTotals();renderEntityCalendar();stats();plannerSaved();
+ lastActualAction=null;PocoCalendar.setActual(entity,currentEntity.date,{earnedDay:$('actualEarnedDay').checked,minutes:duration,cheerK},currentEntity.month);
+ $('actualError').textContent='';updateActualTotals();renderEntityCalendar();stats();plannerSaved();previewActualRange();
 }
 for(const id of ['actualHours','actualMinutes','actualCheer'])$(id).addEventListener('input',saveActualDay);
 $('actualEarnedDay').addEventListener('change',saveActualDay);
@@ -367,7 +434,7 @@ $('todayPlanDay').onclick=()=>{
  if(date.startsWith(currentEntity.month+'-'))selectEntityDay(date);
 };
 function openEntityPlanner(target){
- currentEntity=target;$('liverActualSummary').hidden=target.kind!=='liver';$('liverActualEditor').hidden=target.kind!=='liver';const entity=entityDetails();$('entityMemo').value=entity?.memo||'';$('plannerStatus').textContent='';
+ currentEntity=target;$('actualEntryShortcut').hidden=target.kind!=='liver';$('actualHistory').open=false;$('liverActualSummary').hidden=target.kind!=='liver';$('liverActualEditor').hidden=target.kind!=='liver';const entity=entityDetails();$('entityMemo').value=entity?.memo||'';$('plannerStatus').textContent='';
  const japanDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  selectEntityDay(japanDate.startsWith(target.month+'-')?japanDate:target.month+'-01');
  document.querySelector('.entity-breakdown').open=false;
