@@ -39,7 +39,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 #grid th,#grid thead th,#grid thead tr>:first-child{background:#e6eee7;color:#31594d;border-color:#cfddd2;opacity:1;backdrop-filter:none}
 #grid td{border-color:#e4eae2;color:#304641;background:#fffefa}
 #grid tbody td.name{background:#f1f6ed}
-#grid tbody tr:not(.release-today):not(.active-cheer-row):not(.found-liver):nth-child(even)>td{background:#f8faf4}
+#grid tbody tr:not([data-release-match]):not([data-achievement-match]):not(.active-cheer-row):not(.found-liver):nth-child(even)>td{background:#f8faf4}
 #grid tbody td.name button.name-trigger{color:#285c4c;font-weight:650}
 #grid button.schedule-field{color:#4d665a}
 #grid button.cheer-field{font-variant-numeric:tabular-nums}
@@ -142,3 +142,13 @@ dialog .dialog-header{background:var(--surface);border-bottom:1px solid var(--li
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){.table-panel.time-view:not(.table-detail) #grid{min-width:calc(106px + var(--account-count,15)*36px)}.table-panel.time-view #grid button.pair-time-cell{min-height:40px;padding:4px 1px;gap:1px}.pair-time-days{font-size:11px}.pair-time-duration{font-size:10px}.time-view-note{font-size:10px}}
 
 #actualAccountDialog.time-group .dialog-total,#actualAccountDialog.time-group #actualAccountTable tr>:nth-child(2){display:none}
+
+.color-controls{font-size:12px;min-width:0}.color-controls>summary{cursor:pointer;display:flex;align-items:center;gap:5px;min-height:36px;padding:5px 7px;border:1px solid #cfddd1;border-radius:8px;color:#31594d;background:#f6f8f1;white-space:nowrap}.color-controls>summary::before{content:'▸';font-size:10px}.color-controls[open]>summary::before{content:'▾'}.highlight-active-count{display:inline-grid;place-items:center;min-width:17px;height:17px;background:#e1eddf;border-radius:5px;font-size:10px}.color-controls[open]{flex-basis:100%;width:100%}.color-panel{padding:9px;border:1px solid #d4e0d2;border-radius:9px;background:#f8faf4;margin-top:6px}.color-panel fieldset{padding:7px;border:1px solid #d8e3d4;border-radius:7px;margin:0 0 8px;min-width:0}.color-panel legend{font-size:12px;font-weight:650}.release-color-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.achievement-color-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.color-panel button{font-size:12px;min-height:38px;padding:6px 3px}.highlight-count{display:inline-block;font-size:10px;margin-left:3px;opacity:.8}.color-panel button[aria-pressed=true]{border-color:#557a65;box-shadow:inset 0 0 0 1px #557a65;font-weight:700}.color-panel .note{font-size:11px;margin:7px 0}
+[data-release-highlight=after],[data-release-match=after]>td{--release-color:#e9f0fa}[data-release-highlight=today],[data-release-match=today]>td{--release-color:#fff3cd}[data-release-highlight=before],[data-release-match=before]>td{--release-color:#f1eafa}.color-panel [data-release-highlight]:not([data-release-highlight=none]){background:var(--release-color)}.color-panel [data-achievement-highlight=met]{background:#dff0e2}.color-panel [data-achievement-highlight=unmet]{background:#fbe6e1}
+#grid tbody tr[data-release-match]>td{background:var(--release-color)}
+#grid tbody tr[data-release-match=after] .release-col button{background:#d3e3f8;color:#244f7b;font-weight:700}#grid tbody tr[data-release-match=before] .release-col button{background:#e2d5f4;color:#634581;font-weight:700}
+#grid tbody tr[data-release-match=after]>td.name{box-shadow:inset 3px 0 #527db5}#grid tbody tr[data-release-match=before]>td.name{box-shadow:inset 3px 0 #8b66ac}
+#grid tbody tr[data-achievement-match=met]:not([data-release-match])>td{background:#e7f4e9}#grid tbody tr[data-achievement-match=unmet]:not([data-release-match])>td{background:#fff0eb}
+#grid tbody tr[data-achievement-match=met]>td.name{background:#dff0e2;box-shadow:inset 4px 0 #378052}#grid tbody tr[data-achievement-match=unmet]>td.name{background:#fbe6e1;box-shadow:inset 4px 0 #bb644c}
+#grid tbody tr[data-achievement-match=met] td.name button.name-trigger{color:#205d36;font-weight:700}#grid tbody tr[data-achievement-match=unmet] td.name button.name-trigger{color:#8a3e2d;font-weight:700}
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){.color-controls>summary{font-size:11px;padding:4px 5px;min-height:34px}.color-panel{padding:6px}.color-panel button{font-size:11px;padding:5px 2px}.highlight-count{font-size:9px;margin-left:2px}}

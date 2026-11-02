@@ -52,5 +52,22 @@
     if (![from, to].every(index => Number.isInteger(index) && index >= 0 && index < rows.length)) return result;
     const [row] = result.splice(from, 1); result.splice(to, 0, row); return result;
   }
-  globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, formatRelease, addExtraAccounts, sortRows, moveRow });
+  function releaseState(value,month,today){
+    if(typeof month!=='string'||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||typeof today!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(today))return null;
+    const day=releaseKey(value,month),[year,mon]=month.split('-').map(Number);
+    if(day===null||year<100||day>new Date(Date.UTC(year,mon,0)).getUTCDate())return null;
+    const date=`${month}-${String(day).padStart(2,'0')}`;
+    return date===today?'today':date<today?'after':'before';
+  }
+  function achievementState(row){
+    let targets=0,completed=0;
+    (row.values||[]).forEach((value,index)=>{
+      const text=String(value).trim();if(!/^[+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text))return;
+      const target=Number(text);if(!Number.isFinite(target)||target<=0)return;targets++;
+      const actual=row.pairActuals?.[index]?.cheerK;
+      if(typeof actual==='number'&&Number.isFinite(actual)&&actual>=target)completed++;
+    });
+    return {state:targets===0?null:completed===targets?'met':'unmet',targets,completed};
+  }
+  globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, formatRelease, addExtraAccounts, releaseState, achievementState, sortRows, moveRow });
 })();

@@ -55,3 +55,16 @@ test('account migration keeps pair actuals aligned and never assigns old results
  const first={cheerK:3,memo:'ヨシ'},last={cheerK:4,memo:'別'};const table={columns:['ヨシ','別'],rows:[{values:['1','2'],pairActuals:[first,last]}]};const book={months:{'2026-11':table}};
  PocoRows.addExtraAccounts(book);assert.deepEqual(table.columns,['ヨシ','海斗','レオ','別']);assert.deepEqual(table.rows[0].values,['1','','','2']);assert.deepEqual(table.rows[0].pairActuals,[first,null,null,last]);
 });
+
+test('release categories use the record month, handle tentative days and skip unknown dates',()=>{
+ const {releaseState}=PocoRows;
+ assert.equal(releaseState('2日','2026-11','2026-11-03'),'after');assert.equal(releaseState('3日(仮)','2026-11','2026-11-03'),'today');assert.equal(releaseState('4日','2026-11','2026-11-03'),'before');
+ assert.equal(releaseState('31日','2026-10','2026-11-03'),'after');assert.equal(releaseState('1日','2026-12','2026-11-03'),'before');
+ for(const value of ['','未定','31日'])assert.equal(releaseState(value,'2026-11','2026-11-03'),null);
+});
+test('achievement requires every positive numeric account goal and never substitutes legacy totals',()=>{
+ const {achievementState}=PocoRows;
+ assert.deepEqual(achievementState({values:['2','5','〇','0'],pairActuals:[{cheerK:2},{cheerK:5},null,null]}),{state:'met',targets:2,completed:2});
+ assert.deepEqual(achievementState({values:['2','5'],pairActuals:[{cheerK:20},null],actuals:{'2026-11-03':{cheerK:100}}}),{state:'unmet',targets:2,completed:1});
+ assert.equal(achievementState({values:['〇','','0','-1','Infinity']}).state,null);assert.equal(achievementState({values:['0.5'],pairActuals:[{cheerK:0.5}]}).state,'met');assert.equal(achievementState({values:['1'],pairActuals:[{cheerK:0}]}).state,'unmet');
+});

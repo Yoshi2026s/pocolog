@@ -55,18 +55,35 @@ function refreshActualGrid(){
 $('month').value=book.currentMonth;
 const clockFormat=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
 let releaseTodayDate='';
-function highlightReleaseToday(date){
+const rowHighlights={release:'today',achievement:'none'};
+try{const stored=JSON.parse(localStorage.getItem('pocolog.row-highlights.v1')||'null');if(stored){if(['none','after','today','before'].includes(stored.release))rowHighlights.release=stored.release;if(['none','met','unmet'].includes(stored.achievement))rowHighlights.achievement=stored.achievement;}}catch{}
+function setRowHighlights(group,value){
+ rowHighlights[group]=value;try{localStorage.setItem('pocolog.row-highlights.v1',JSON.stringify(rowHighlights));}catch{}
+ $('colorControls').open=false;applyRowHighlights();$('colorControls').querySelector('summary').focus({preventScroll:true});
+}
+for(const button of document.querySelectorAll('[data-release-highlight]'))button.onclick=()=>setRowHighlights('release',button.dataset.releaseHighlight);
+for(const button of document.querySelectorAll('[data-achievement-highlight]'))button.onclick=()=>setRowHighlights('achievement',button.dataset.achievementHighlight);
+$('clearRowHighlights').onclick=()=>{rowHighlights.release='none';setRowHighlights('achievement','none');};
+document.addEventListener('click',event=>{const controls=$('colorControls');if(controls.open&&!controls.contains(event.target))controls.open=false;});
+document.addEventListener('keydown',event=>{const controls=$('colorControls');if(event.key==='Escape'&&controls.open&&controls.contains(document.activeElement)){event.preventDefault();controls.open=false;controls.querySelector('summary').focus({preventScroll:true});}});
+function applyRowHighlights(date=releaseTodayDate){
  const rows=$('grid').tBodies[0]?.rows;if(!rows)return;
- const currentMonth=book.currentMonth===date.slice(0,7),day=Number(date.slice(8));
+ const counts={after:0,today:0,before:0,met:0,unmet:0};
+ const releaseLabels={after:'解禁後',today:'本日解禁',before:'解禁前'};
  data.rows.forEach((row,index)=>{
   const tr=rows[index];if(!tr)return;
-  const isToday=currentMonth&&PocoRows.releaseKey(row.releaseDate,book.currentMonth)===day;
-  tr.classList.toggle('release-today',isToday);
-  const button=tr.querySelector('.release-col button');if(!button)return;
-  const value=PocoRows.formatRelease(row.releaseDate,book.currentMonth);
-  button.title=value+(isToday?'（本日解禁）':'');
-  if(isToday)button.setAttribute('aria-description','本日が解禁日です（日本時間）');else button.removeAttribute('aria-description');
+  const release=PocoRows.releaseState(row.releaseDate,book.currentMonth,date),achievement=PocoRows.achievementState(row);
+  if(release)counts[release]++;if(achievement.state)counts[achievement.state]++;
+  const releaseMatch=release&&rowHighlights.release===release,achievementMatch=achievement.state&&rowHighlights.achievement===achievement.state;
+  tr.classList.toggle('release-today',Boolean(releaseMatch&&release==='today'));
+  if(releaseMatch)tr.dataset.releaseMatch=release;else delete tr.dataset.releaseMatch;
+  if(achievementMatch)tr.dataset.achievementMatch=achievement.state;else delete tr.dataset.achievementMatch;
+  const description=[releaseMatch?releaseLabels[release]:'',achievementMatch?`${achievement.state==='met'?'目標達成済':'目標未達成'}（${achievement.completed}/${achievement.targets}アカウント達成）`:''].filter(Boolean).join('、');
+  const name=tr.querySelector('td.name .name-trigger');if(name){if(description)name.setAttribute('aria-description',description);else name.removeAttribute('aria-description');}
+  const button=tr.querySelector('.release-col button');if(button){button.title=PocoRows.formatRelease(row.releaseDate,book.currentMonth)+(release?'（'+releaseLabels[release]+'）':'');if(release==='today')button.setAttribute('aria-description','本日が解禁日です（日本時間）');else button.removeAttribute('aria-description');}
  });
+ for(const button of document.querySelectorAll('[data-release-highlight],[data-achievement-highlight]')){const group=button.dataset.releaseHighlight!==undefined?'release':'achievement',value=button.dataset.releaseHighlight??button.dataset.achievementHighlight;button.setAttribute('aria-pressed',String(rowHighlights[group]===value));const count=button.querySelector('.highlight-count');if(count)count.textContent=counts[value];}
+ $('highlightActiveCount').textContent=Number(rowHighlights.release!=='none')+Number(rowHighlights.achievement!=='none');
 }
 function updateCurrentDateTime(){
  const now=new Date();const parts=Object.fromEntries(clockFormat.formatToParts(now).map(part=>[part.type,part.value]));
@@ -74,7 +91,7 @@ function updateCurrentDateTime(){
  $('currentDate').textContent=`${parts.year}/${parts.month}/${parts.day}`;
  $('currentTime').textContent=`${parts.hour}:${parts.minute}:${parts.second}`;
  const date=`${parts.year}-${parts.month}-${parts.day}`;
- if(date!==releaseTodayDate){releaseTodayDate=date;highlightReleaseToday(date);}
+ if(date!==releaseTodayDate){releaseTodayDate=date;applyRowHighlights(date);}
 }
 updateCurrentDateTime();setInterval(updateCurrentDateTime,1000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateCurrentDateTime();});
@@ -661,7 +678,6 @@ function render(){
   }
   cell(tr,'td','memo extra-col').append(input(r.memo,`${r.name}のメモ`,v=>r.memo=v));
  });
- highlightReleaseToday(releaseTodayDate);
  stats();
  if(monthChanged){const position=monthViewportPositions.get(viewportKey)||{top:0,left:0};wrap.scrollTop=position.top;wrap.scrollLeft=position.left;}
  if(!gridEditingEnabled)window.pocolog?.setEditing(false);
@@ -696,7 +712,7 @@ function stats(){
  const cols=data.columns.map((name,j)=>({name,...measure(data.rows.map(r=>r.values[j]))}));
  $('columns').replaceChildren();const colmax=Math.max(0,...cols.map(c=>c.number));cols.forEach(c=>bar($('columns'),c.name,c.number,colmax,`${fmt(c.number)} ／ ${c.circle} ／ ${c.filled}`));
  coinSummary('liverCoins',liverTotals);coinSummary('accountCoins',cols);
- refreshActualGrid();
+ refreshActualGrid();applyRowHighlights();
  const pairs=$('pairSummaryTable');pairs.replaceChildren();const pairHead=pairs.createTHead().insertRow();for(const title of ['ライバー','アカウント','獲得エール（K）','日数','時間'])cell(pairHead,'th').textContent=title;const pairBody=pairs.createTBody();
  for(const row of data.rows)data.columns.forEach((account,index)=>{const pair=row.pairActuals?.[index];if(!pair)return;const total=PocoCalendar.actualTotals(pair),tr=pairBody.insertRow();for(const value of [row.name,account,pair.cheerK===null?'未記録':fmt(pair.cheerK),total.records?total.days+'日':'未記録',total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'未記録'])cell(tr).textContent=value;});
  if(!pairBody.rows.length){const td=cell(pairBody.insertRow());td.colSpan=5;td.textContent='月実績の各アカウント欄から記録できます。';}
