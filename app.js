@@ -112,6 +112,47 @@ function cheerSelect(value,label,onchange){
  return trigger;
 }
 
+let lastCheerEdit=null;
+function canUndoCheer(){
+ const edit=lastCheerEdit;
+ return edit&&edit.table===data&&data.rows.includes(edit.row)&&data.columns.length===edit.columns.length&&data.columns.every((name,index)=>name===edit.columns[index])&&data.columns[edit.index]===edit.account&&edit.row.values[edit.index]===edit.next;
+}
+function dismissCheerUndo(){lastCheerEdit=null;$('cheerUndoBar').hidden=true;}
+function changeCheer(row,index,next){
+ const previous=row.values[index];if(previous===next)return;
+ row.values[index]=next;lastCheerEdit={table:data,row,index,account:data.columns[index],columns:[...data.columns],previous,next};
+ $('cheerUndoMessage').textContent=`${row.name}・${data.columns[index]}：${next||'空欄'}に変更`;
+ $('cheerUndoBar').hidden=false;
+}
+$('dismissCheerUndo').onclick=dismissCheerUndo;
+$('undoCheer').onclick=()=>{
+ if(!canUndoCheer()){dismissCheerUndo();return;}
+ const edit=lastCheerEdit;edit.row.values[edit.index]=edit.previous;dismissCheerUndo();save();render();
+ $('orderStatus').textContent=`${edit.row.name}・${edit.account}の入力を元に戻しました`;
+};
+const normalizeSearch=value=>value.normalize('NFKC').toLocaleLowerCase('ja-JP').replace(/[ァ-ヶ]/g,char=>String.fromCharCode(char.charCodeAt(0)-0x60)).trim();
+let foundLiverTimer;
+function showLiverSearchResults(){
+ const query=normalizeSearch($('liverSearch').value);const matches=data.rows.filter(row=>normalizeSearch(row.name).includes(query));
+ $('liverSearchCount').textContent=matches.length?`${matches.length}人 ／ 名前を押すと一覧へ移動`:'該当するライバーがいません';
+ $('liverSearchResults').replaceChildren();
+ for(const row of matches){
+  const button=document.createElement('button');button.type='button';button.textContent=row.name||'（未設定）';
+  button.onclick=()=>{
+   const index=data.rows.indexOf(row);if(index<0)return;
+   $('findLiverDialog').close();const tr=$('grid').tBodies[0]?.rows[index];if(!tr)return;
+   const wrap=$('grid').parentElement;wrap.scrollTop+=tr.getBoundingClientRect().top-wrap.getBoundingClientRect().top-$('grid').tHead.getBoundingClientRect().height;
+   document.querySelectorAll('#grid .found-liver').forEach(el=>el.classList.remove('found-liver'));tr.classList.add('found-liver');clearTimeout(foundLiverTimer);foundLiverTimer=setTimeout(()=>tr.classList.remove('found-liver'),2500);
+   tr.querySelector('.name-trigger').focus({preventScroll:true});$('orderStatus').textContent=`${row.name}へ移動しました`;
+  };$('liverSearchResults').append(button);
+ }
+}
+$('findLiver').onclick=()=>{
+ closeCheerPicker();$('liverSearch').value='';showLiverSearchResults();updateOverlayViewport();$('findLiverDialog').showModal();$('findLiverDialog').scrollTop=0;$('liverSearch').focus({preventScroll:true});
+};
+$('findLiverClose').onclick=()=>$('findLiverDialog').close();
+$('liverSearch').oninput=showLiverSearchResults;
+$('liverSearch').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('liverSearchResults').querySelector('button')?.click();}});
 let rowSort={field:null,direction:1,month:''};
 let rowDrag=null,suppressRowClick=false;
 document.addEventListener('click',event=>{if(suppressRowClick&&event.target.closest('#grid')){event.preventDefault();event.stopImmediatePropagation();suppressRowClick=false;}},true);
@@ -363,6 +404,8 @@ $('scheduleForm').onsubmit=event=>{
  scheduleRow.closingTime=$('closingTimeInput').value.trim();scheduleRow.releaseDate=PocoRows.formatRelease($('releaseDateInput').value,book.currentMonth);rowSort={field:null,direction:1,month:book.currentMonth};save();render();
 };
 function render(){
+ if(!canUndoCheer())dismissCheerUndo();
+ if($('findLiverDialog').open)$('findLiverDialog').close();
  clearRowDrag();
  if(rowSort.month!==book.currentMonth)rowSort={field:null,direction:1,month:book.currentMonth};
  closeCheerPicker();
@@ -380,7 +423,7 @@ function render(){
   const tr=body.insertRow();const nameCell=cell(tr,'td','name');nameCell.append(nameControls(r.name,'ライバー',()=>showCoinDialog('liver',i)));attachRowDrag(nameCell.querySelector('button'),r,tr);
   cell(tr,'td','closing-col').append(scheduleField(r,'closingTime','締め時間'));cell(tr,'td','release-col').append(scheduleField(r,'releaseDate','解禁日'));
   r.values.forEach((v,j)=>{
-   const td=cell(tr);td.append(cheerSelect(v,`${r.name}・${data.columns[j]}`,v=>r.values[j]=v));
+   const td=cell(tr);td.append(cheerSelect(v,`${r.name}・${data.columns[j]}`,v=>changeCheer(r,j,v)));
   });
   const total=cell(tr,'td','total extra-col');total.dataset.row=i;
   const coins=cell(tr,'td','total coin-total extra-col');coins.dataset.coinRow=i;
@@ -484,6 +527,6 @@ window.pocolog = {
   data=book.months[book.currentMonth];$('month').value=book.currentMonth;
   save(false);render();return migrated;
  },
- setEditing(enabled){if(!enabled){clearRowDrag();closeCheerPicker();}document.querySelectorAll('#grid input,#grid select,#grid button,#addRow,#addCol,#upload,#month').forEach(el=>el.disabled=!enabled);document.querySelectorAll('#grid .sort-label').forEach(el=>{el.setAttribute('aria-disabled',String(!enabled));el.tabIndex=enabled?0:-1;});},
+ setEditing(enabled){if(!enabled){clearRowDrag();closeCheerPicker();}document.querySelectorAll('#grid input,#grid select,#grid button,#addRow,#addCol,#upload,#month,#undoCheer').forEach(el=>el.disabled=!enabled);document.querySelectorAll('#grid .sort-label').forEach(el=>{el.setAttribute('aria-disabled',String(!enabled));el.tabIndex=enabled?0:-1;});},
  downloadBackup:(backup=book)=>download(JSON.stringify(backup,null,2),'application/json','pocolog-unsynced-backup.json')
 };
