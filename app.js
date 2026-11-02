@@ -221,7 +221,7 @@ function showCoinDialog(kind,index){
   const converted=PocoCoins.convert(entry.value);cell(row).textContent=converted.status==='known'?fmt(converted.coins):['check','blank'].includes(converted.status)?'—':'未算定';
  });
  openEntityPlanner({kind,index,row:targetRow,month:book.currentMonth,table:data,isCurrent:current});
- $('coinDialog').showModal();$('coinDialog').scrollTop=0;
+ updateOverlayViewport();$('coinDialog').showModal();$('coinDialog').scrollTop=0;
 }
 let currentEntity=null;
 function entityDetails(create=false){
@@ -231,6 +231,7 @@ function entityDetails(create=false){
 function renderEntityCalendar(){
  const entity=entityDetails();if(!entity)return;
  const month=currentEntity.month,info=PocoCalendar.monthInfo(month);if(!info)return;
+ const todayDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const calendar=$('entityCalendar');calendar.replaceChildren();
  $('calendarMonthLabel').textContent=`${info.year}年${info.number}月の配信予定`;
  $('calendarCount').textContent=`${Object.keys(entity.schedule||{}).length}日登録`;
@@ -238,6 +239,7 @@ function renderEntityCalendar(){
  for(const day of PocoCalendar.dates(month)){
   const text=entity.schedule?.[day.date]||'';const button=document.createElement('button');button.type='button';button.className='calendar-day';button.dataset.date=day.date;
   button.classList.toggle('is-sunday',day.weekday===0);button.classList.toggle('is-saturday',day.weekday===6);button.classList.toggle('has-plan',text!=='');
+  if(day.date===todayDate)button.setAttribute('aria-current','date');
   button.setAttribute('aria-label',`${info.year}年${info.number}月${day.day}日の配信予定`);button.setAttribute('aria-pressed',String(currentEntity.date===day.date));button.title=text||'予定なし';
   const number=document.createElement('span');number.className='day-number';number.textContent=day.day;
   const preview=document.createElement('span');preview.className='day-preview';preview.textContent=text.split('\n')[0];button.append(number,preview);
@@ -249,8 +251,25 @@ function selectEntityDay(date){
  const entity=entityDetails();if(!entity)return;currentEntity.date=date;
  const day=Number(date.slice(8));const info=PocoCalendar.monthInfo(currentEntity.month);
  $('selectedDayTitle').textContent=`${info.number}月${day}日の予定（自由入力）`;
- $('daySchedule').value=entity.schedule?.[date]||'';renderEntityCalendar();
+ $('daySchedule').value=entity.schedule?.[date]||'';
+ $('previousPlanDay').disabled=day===1;$('nextPlanDay').disabled=day===info.days;
+ const todayDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ $('todayPlanDay').disabled=!todayDate.startsWith(currentEntity.month+'-');
+ renderEntityCalendar();
 }
+function movePlanDay(offset){
+ if(!entityDetails()||!currentEntity.date)return;
+ const day=Number(currentEntity.date.slice(8))+offset,info=PocoCalendar.monthInfo(currentEntity.month);
+ if(day<1||day>info.days)return;
+ selectEntityDay(`${currentEntity.month}-${String(day).padStart(2,'0')}`);
+}
+$('previousPlanDay').onclick=()=>movePlanDay(-1);
+$('nextPlanDay').onclick=()=>movePlanDay(1);
+$('todayPlanDay').onclick=()=>{
+ if(!entityDetails())return;
+ const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ if(date.startsWith(currentEntity.month+'-'))selectEntityDay(date);
+};
 function openEntityPlanner(target){
  currentEntity=target;const entity=entityDetails();$('entityMemo').value=entity?.memo||'';$('plannerStatus').textContent='';resetImageImport(target);
  const japanDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -324,16 +343,17 @@ $('applyImagePlans').onclick=()=>{
 $('coinDialog').addEventListener('close',()=>{if(!$('coinDialog').open)resetImageImport();});
 $('coinDialogClose').onclick=()=>$('coinDialog').close();
 let scheduleRow=null;
-function showSchedule(row){
+function showSchedule(row,field){
  scheduleRow=row;$('scheduleTitle').textContent=`${row.name}の日程`;
  $('closingTimeInput').value=row.closingTime||'';$('releaseDateInput').value=PocoRows.formatRelease(row.releaseDate,book.currentMonth);
- $('scheduleDialog').showModal();$('scheduleDialog').scrollTop=0;
+ updateOverlayViewport();$('scheduleDialog').showModal();$('scheduleDialog').scrollTop=0;
+ $(field==='releaseDate'?'releaseDateInput':'closingTimeInput').focus({preventScroll:true});
 }
 function scheduleField(row,field,label){
  const button=document.createElement('button');button.type='button';button.className='schedule-field';button.setAttribute('aria-label',`${row.name}の${label}`);button.title=field==='releaseDate'?PocoRows.formatRelease(row[field],book.currentMonth):row[field]||'';
  const value=button.title;
  button.textContent=value;
- button.onclick=()=>showSchedule(row);return button;
+ button.onclick=()=>showSchedule(row,field);return button;
 }
 $('scheduleClose').onclick=()=>$('scheduleDialog').close();
 $('scheduleDialog').addEventListener('close',()=>{scheduleRow=null;});
@@ -410,10 +430,16 @@ function fitTableViewport(){
 // visualViewport events. Re-measure after that animation, rather than keeping
 // the temporary keyboard-sized table until the next window resize.
 let tableViewportTimer;
+function updateOverlayViewport(){
+ const view=visibleViewport();
+ for(const [name,value] of Object.entries(view))document.documentElement.style.setProperty('--visible-'+name,value+'px');
+ if(document.querySelector('.table-tools[open]'))positionToolsMenu();
+}
 function refreshTableViewport(){
+ updateOverlayViewport();
  requestAnimationFrame(fitTableViewport);
  clearTimeout(tableViewportTimer);
- tableViewportTimer=setTimeout(()=>requestAnimationFrame(fitTableViewport),350);
+ tableViewportTimer=setTimeout(()=>{updateOverlayViewport();requestAnimationFrame(fitTableViewport);},350);
 }
 window.addEventListener('resize',refreshTableViewport);
 window.addEventListener('pageshow',refreshTableViewport);
@@ -421,13 +447,15 @@ window.visualViewport?.addEventListener('resize',refreshTableViewport);
 window.visualViewport?.addEventListener('scroll',refreshTableViewport);
 document.addEventListener('focusout',refreshTableViewport);
 document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('close',refreshTableViewport));
+updateOverlayViewport();
 const tableViewportObserver=new ResizeObserver(()=>requestAnimationFrame(fitTableViewport));
 for(const selector of ['header','.page-title','.shared-panel','.cards','.table-bar'])tableViewportObserver.observe(document.querySelector(selector));
 const toolsMenu=document.querySelector('.table-tools');
 function positionToolsMenu(){
  if(!toolsMenu.open)return;const menu=toolsMenu.querySelector('.toolbar');const anchor=toolsMenu.querySelector('summary').getBoundingClientRect();
- const width=menu.getBoundingClientRect().width;const top=Math.max(8,Math.min(anchor.bottom+5,window.innerHeight-130));
- menu.style.left=Math.max(8,Math.min(anchor.left,window.innerWidth-width-8))+'px';menu.style.top=top+'px';menu.style.maxHeight=Math.max(80,window.innerHeight-top-8)+'px';
+ const view=visibleViewport();menu.style.maxWidth=Math.max(0,view.width-16)+'px';
+ const width=menu.getBoundingClientRect().width;const top=Math.max(view.top+8,Math.min(anchor.bottom+5,view.top+view.height-130));
+ menu.style.left=Math.max(view.left+8,Math.min(anchor.left,view.left+view.width-width-8))+'px';menu.style.top=top+'px';menu.style.maxHeight=Math.max(80,view.top+view.height-top-8)+'px';
 }
 document.addEventListener('pointerdown',event=>{if(toolsMenu.open&&!toolsMenu.contains(event.target))toolsMenu.open=false;});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&toolsMenu.open){event.preventDefault();toolsMenu.open=false;toolsMenu.querySelector('summary').focus({preventScroll:true});}});
