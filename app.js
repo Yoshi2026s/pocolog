@@ -304,6 +304,7 @@ $('scheduleClose').onclick=()=>$('scheduleDialog').close();
 $('scheduleDialog').addEventListener('close',()=>{scheduleRow=null;});
 $('scheduleForm').onsubmit=event=>{
  event.preventDefault();if(!scheduleRow||!data.rows.includes(scheduleRow))return;
+ document.activeElement?.blur();
  scheduleRow.closingTime=$('closingTimeInput').value.trim();scheduleRow.releaseDate=PocoRows.formatRelease($('releaseDateInput').value,book.currentMonth);rowSort={field:null,direction:1,month:book.currentMonth};save();render();
 };
 function render(){
@@ -366,10 +367,25 @@ function stats(){
 function fitTableViewport(){
  const wrap=$('grid').parentElement;
  if(!window.matchMedia('(max-width:700px), (max-height:500px) and (max-width:1000px)').matches){wrap.style.maxHeight='';wrap.style.minHeight='';return;}
- const top=wrap.getBoundingClientRect().top+window.scrollY;const available=Math.max(96,window.innerHeight-top-64);
+ const top=wrap.getBoundingClientRect().top+window.scrollY;const viewportHeight=Math.max(window.innerHeight,document.documentElement.clientHeight);
+ const available=Math.max(96,viewportHeight-top-64);
  wrap.style.maxHeight=available+'px';wrap.style.minHeight=Math.min(120,available)+'px';
 }
-window.addEventListener('resize',fitTableViewport);
+// Phone keyboards can finish closing after the dialog's render and only emit
+// visualViewport events. Re-measure after that animation, rather than keeping
+// the temporary keyboard-sized table until the next window resize.
+let tableViewportTimer;
+function refreshTableViewport(){
+ requestAnimationFrame(fitTableViewport);
+ clearTimeout(tableViewportTimer);
+ tableViewportTimer=setTimeout(()=>requestAnimationFrame(fitTableViewport),350);
+}
+window.addEventListener('resize',refreshTableViewport);
+window.addEventListener('pageshow',refreshTableViewport);
+window.visualViewport?.addEventListener('resize',refreshTableViewport);
+window.visualViewport?.addEventListener('scroll',refreshTableViewport);
+document.addEventListener('focusout',refreshTableViewport);
+document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('close',refreshTableViewport));
 const tableViewportObserver=new ResizeObserver(()=>requestAnimationFrame(fitTableViewport));
 for(const selector of ['header','.page-title','.shared-panel','.cards','.table-bar'])tableViewportObserver.observe(document.querySelector(selector));
 const toolsMenu=document.querySelector('.table-tools');
