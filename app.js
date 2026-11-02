@@ -30,6 +30,25 @@ function addPhotoLivers(){
 }
 addPhotoLivers();
 data=book.months[book.currentMonth];
+let monthView='goal',gridEditingEnabled=true;
+try{if(localStorage.getItem('pocolog.month-view.v1')==='actual')monthView='actual';}catch{}
+function setMonthView(view){
+ if(!['goal','actual'].includes(view)||monthView===view)return;
+ monthView=view;try{localStorage.setItem('pocolog.month-view.v1',view);}catch{}
+ render();
+}
+$('monthViewGoal').onclick=()=>setMonthView('goal');$('monthViewActual').onclick=()=>setMonthView('actual');
+function actualMetricText(total,kind){
+ if(kind==='days')return total.records?`${total.days}日`:'未記録';
+ if(kind==='minutes')return total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'未記録';
+ return total.cheerRecords?`${fmt(total.cheerK)} K`:'未記録';
+}
+function refreshActualGrid(){
+ if(monthView!=='actual')return;
+ data.rows.forEach((row,index)=>{const total=PocoCalendar.actualTotals(row),tr=$('grid').tBodies[0]?.rows[index];if(!tr)return;
+  for(const button of tr.querySelectorAll('[data-actual-kind]')){button.textContent=actualMetricText(total,button.dataset.actualKind);button.classList.toggle('is-unrecorded',button.textContent==='未記録');}
+ });
+}
 $('month').value=book.currentMonth;
 const clockFormat=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
 let releaseTodayDate='';
@@ -581,37 +600,46 @@ function markAddedName(element,message){
 }
 function render(){
  const wrap=$('grid').parentElement;
- const monthChanged=renderedMonth!==book.currentMonth;
+ const viewportKey=book.currentMonth+':'+monthView;const monthChanged=renderedMonth!==viewportKey;
  if(monthChanged&&renderedMonth)monthViewportPositions.set(renderedMonth,{top:wrap.scrollTop,left:wrap.scrollLeft});
- renderedMonth=book.currentMonth;
- if(!canUndoCheer())dismissCheerUndo();
+ renderedMonth=viewportKey;
+ if(!canUndoCheer())dismissCheerUndo();else $('cheerUndoBar').hidden=monthView==='actual';
  if($('findLiverDialog').open)$('findLiverDialog').close();
  clearRowDrag();
  if(rowSort.month!==book.currentMonth)rowSort={field:null,direction:1,month:book.currentMonth};
  closeCheerPicker();
  if($('coinDialog').open)$('coinDialog').close();
  closeScheduleEditor();
- const table=$('grid');table.style.setProperty('--account-count',data.columns.length);table.style.setProperty('--compact-table-min-width',data.columns.length>15?`${106+data.columns.length*13}px`:'286px');table.replaceChildren();const head=table.createTHead().insertRow();
+ $('tablePanel').classList.toggle('actual-view',monthView==='actual');$('monthViewGoal').setAttribute('aria-pressed',String(monthView==='goal'));$('monthViewActual').setAttribute('aria-pressed',String(monthView==='actual'));$('addCol').hidden=monthView==='actual';
+ const table=$('grid');table.setAttribute('aria-label',monthView==='actual'?'ポコログの月実績一覧':'ポコログの月目標一覧');table.style.setProperty('--account-count',monthView==='actual'?3:data.columns.length);table.style.setProperty('--compact-table-min-width',data.columns.length>15?`${106+data.columns.length*13}px`:'286px');table.replaceChildren();const head=table.createTHead().insertRow();
  cell(head,'th').textContent='ライバー名';
  sortHeader(head,'closingTime','締め','closing-col');sortHeader(head,'releaseDate','解禁日','release-col');
- data.columns.forEach((c,j)=>{
+ if(monthView==='actual'){for(const label of ['稼いだ日数','稼いだ時間','実獲得エール（K）'])cell(head,'th','actual-metric-col').textContent=label;}else data.columns.forEach((c,j)=>{
   const th=cell(head,'th');th.append(nameControls(c,'アカウント',()=>showCoinDialog('account',j)));
  });
- cell(head,'th','extra-col').textContent='合計（K）';cell(head,'th','extra-col').textContent='必要コイン';cell(head,'th','extra-col').textContent='メモ';
+ if(monthView==='goal'){cell(head,'th','extra-col').textContent='合計（K）';cell(head,'th','extra-col').textContent='必要コイン';}cell(head,'th','extra-col').textContent='メモ';
  const body=table.createTBody();
  data.rows.forEach((r,i)=>{
   const tr=body.insertRow();const nameCell=cell(tr,'td','name');nameCell.append(nameControls(r.name,'ライバー',()=>showCoinDialog('liver',i)));attachRowDrag(nameCell.querySelector('button'),r,tr);
   cell(tr,'td','closing-col').append(scheduleField(r,'closingTime','締め'));cell(tr,'td','release-col').append(scheduleField(r,'releaseDate','解禁日'));
+  if(monthView==='actual'){
+   const total=PocoCalendar.actualTotals(r);
+   for(const [kind,label] of [['days','稼いだ日数'],['minutes','稼いだ時間'],['cheerK','実獲得エール']]){
+    const td=cell(tr,'td','actual-metric-col'),button=document.createElement('button');button.type='button';button.className='actual-metric';button.dataset.actualKind=kind;button.textContent=actualMetricText(total,kind);button.classList.toggle('is-unrecorded',button.textContent==='未記録');button.setAttribute('aria-label',`${r.name}の${label}を編集`);button.onclick=()=>{showCoinDialog('liver',i);focusActualEditor();};td.append(button);
+   }
+  }else{
   r.values.forEach((v,j)=>{
    const td=cell(tr);td.append(cheerSelect(v,`${r.name}・${data.columns[j]}`,v=>changeCheer(r,j,v)));
   });
   const total=cell(tr,'td','total extra-col');total.dataset.row=i;
   const coins=cell(tr,'td','total coin-total extra-col');coins.dataset.coinRow=i;
+  }
   cell(tr,'td','memo extra-col').append(input(r.memo,`${r.name}のメモ`,v=>r.memo=v));
  });
  highlightReleaseToday(releaseTodayDate);
  stats();
- if(monthChanged){const position=monthViewportPositions.get(book.currentMonth)||{top:0,left:0};wrap.scrollTop=position.top;wrap.scrollLeft=position.left;}
+ if(monthChanged){const position=monthViewportPositions.get(viewportKey)||{top:0,left:0};wrap.scrollTop=position.top;wrap.scrollLeft=position.left;}
+ if(!gridEditingEnabled)window.pocolog?.setEditing(false);
  requestAnimationFrame(fitTableViewport);
 }
 const coinText=result=>fmt(result.coins)+(result.unknown?` ＋ 未算定${result.unknown}件`:'');
@@ -643,6 +671,7 @@ function stats(){
  const cols=data.columns.map((name,j)=>({name,...measure(data.rows.map(r=>r.values[j]))}));
  $('columns').replaceChildren();const colmax=Math.max(0,...cols.map(c=>c.number));cols.forEach(c=>bar($('columns'),c.name,c.number,colmax,`${fmt(c.number)} ／ ${c.circle} ／ ${c.filled}`));
  coinSummary('liverCoins',liverTotals);coinSummary('accountCoins',cols);
+ refreshActualGrid();
  const actuals=$('actualSummaryTable');actuals.replaceChildren();const actualHead=actuals.createTHead().insertRow();for(const title of ['ライバー','稼いだ日数','稼いだ時間','実獲得エール（K）'])cell(actualHead,'th').textContent=title;
  const actualBody=actuals.createTBody();for(const row of data.rows){const total=PocoCalendar.actualTotals(row),tr=actualBody.insertRow();for(const value of [row.name,total.records?`${total.days}日`:'未記録',total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'未記録',total.cheerRecords?fmt(total.cheerK):'未記録'])cell(tr).textContent=value;}
 }
@@ -696,7 +725,7 @@ $('refresh').onclick=()=>{try{localStorage.setItem(KEY,JSON.stringify(book));loc
 function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('download').onclick=()=>download(JSON.stringify(book,null,2),'application/json','pocolog-backup.json');
 $('upload').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>10000000)throw Error();const next=JSON.parse(await f.text());if(!validBook(next)&&!valid(next,book.currentMonth))throw Error();if(confirm('全月の記録をバックアップの内容で置き換えますか？')){book=validBook(next)?next:{version:2,currentMonth:book.currentMonth,months:{[book.currentMonth]:next}};addMoeAccount();PocoRows.addExtraAccounts(book);addPhotoLivers();rowSort={field:null,direction:1,month:book.currentMonth};data=book.months[book.currentMonth];$('month').value=book.currentMonth;save();render();}}catch{alert('読み込めませんでした。ポコログのJSONバックアップを選択してください。');}e.target.value='';};
-$('csv').onclick=()=>{const quote=s=>'"'+String(s).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';const rows=[['ライバー名','締め','解禁日',...data.columns,'エール合計（K）','必要コイン（換算済み分）','未算定セル数','メモ','稼いだ日数','稼いだ時間（分）','実獲得エール（K）'],...data.rows.map(r=>{const total=measure(r.values);const actual=PocoCalendar.actualTotals(r);return [r.name,r.closingTime||'',PocoRows.formatRelease(r.releaseDate,book.currentMonth),...r.values,total.number,total.coins,total.unknown,r.memo,actual.records?actual.days:'',actual.timeRecords?actual.minutes:'',actual.cheerRecords?actual.cheerK:''];})];download('\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog.csv');};
+$('csv').onclick=()=>{const quote=s=>'"'+String(s).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';if(monthView==='actual'){const rows=[['ライバー名','締め','解禁日','稼いだ日数','稼いだ時間（分）','実獲得エール（K）','メモ'],...data.rows.map(row=>{const total=PocoCalendar.actualTotals(row);return [row.name,row.closingTime||'',PocoRows.formatRelease(row.releaseDate,book.currentMonth),total.records?total.days:'',total.timeRecords?total.minutes:'',total.cheerRecords?total.cheerK:'',row.memo];})];download('\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog-actual.csv');return;}const rows=[['ライバー名','締め','解禁日',...data.columns,'エール合計（K）','必要コイン（換算済み分）','未算定セル数','メモ','稼いだ日数','稼いだ時間（分）','実獲得エール（K）'],...data.rows.map(r=>{const total=measure(r.values);const actual=PocoCalendar.actualTotals(r);return [r.name,r.closingTime||'',PocoRows.formatRelease(r.releaseDate,book.currentMonth),...r.values,total.number,total.coins,total.unknown,r.memo,actual.records?actual.days:'',actual.timeRecords?actual.minutes:'',actual.cheerRecords?actual.cheerK:''];})];download('\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog.csv');};
 const reference=$('coinReference');const referenceHead=reference.createTHead().insertRow();
 cell(referenceHead,'th').textContent='エール（K）';cell(referenceHead,'th').textContent='必要コイン（条件1）';
 const referenceBody=reference.createTBody();PocoCoins.tiers.forEach(([level,coins])=>{const row=referenceBody.insertRow();cell(row).textContent=fmt(level);cell(row).textContent=fmt(coins);});
@@ -712,6 +741,6 @@ window.pocolog = {
   data=book.months[book.currentMonth];$('month').value=book.currentMonth;
   save(false);render();return migrated;
  },
- setEditing(enabled){if(!enabled){clearRowDrag();closeCheerPicker();}document.querySelectorAll('#grid input,#grid select,#grid button,#addRow,#addCol,#upload,#month,#undoCheer').forEach(el=>el.disabled=!enabled);document.querySelectorAll('#grid .sort-label').forEach(el=>{el.setAttribute('aria-disabled',String(!enabled));el.tabIndex=enabled?0:-1;});},
+ setEditing(enabled){gridEditingEnabled=enabled;if(!enabled){clearRowDrag();closeCheerPicker();}document.querySelectorAll('#grid input,#grid select,#grid button,#addRow,#addCol,#upload,#month,#undoCheer').forEach(el=>el.disabled=!enabled);document.querySelectorAll('#grid .sort-label').forEach(el=>{el.setAttribute('aria-disabled',String(!enabled));el.tabIndex=enabled?0:-1;});},
  downloadBackup:(backup=book)=>download(JSON.stringify(backup,null,2),'application/json','pocolog-unsynced-backup.json')
 };
