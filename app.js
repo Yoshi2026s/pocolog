@@ -37,6 +37,25 @@ function setMonthView(view){
  monthView=view;try{localStorage.setItem('pocolog.month-view.v1',view);}catch{}
  render();
 }
+let focusedAccount=null,roomyView=false;
+try{roomyView=localStorage.getItem('pocolog.roomy-view.v1')==='1';}catch{}
+function applyAccountView(){
+ if(focusedAccount!==null&&(focusedAccount<0||focusedAccount>=data.columns.length))focusedAccount=null;
+ const focused=focusedAccount!==null,panel=$('tablePanel');panel.classList.toggle('account-focused',focused);panel.classList.toggle('roomy-view',roomyView);
+ $('grid').style.setProperty('--account-count',focused?1:data.columns.length);
+ for(const row of $('grid').rows)for(let j=0;j<data.columns.length;j++)if(row.cells[j+3])row.cells[j+3].hidden=focused&&j!==focusedAccount;
+ $('viewControlsSummary').textContent=focused?`表示：${data.columns[focusedAccount]}`:'表示';
+ $('roomyView').setAttribute('aria-pressed',String(roomyView));
+ const choices=$('accountViewChoices');choices.replaceChildren();
+ for(const [index,name] of [[null,'全アカウント'],...data.columns.map((name,index)=>[index,name])]){
+  const button=document.createElement('button');button.type='button';button.textContent=name;button.setAttribute('aria-pressed',String(focusedAccount===index));button.onclick=()=>{focusedAccount=index;closeCheerPicker();closeScheduleEditor();applyAccountView();$('grid').parentElement.scrollLeft=0;$('viewControls').open=false;$('viewControlsSummary').focus();requestAnimationFrame(fitTableViewport);};choices.append(button);
+ }
+}
+$('roomyView').onclick=()=>{roomyView=!roomyView;try{localStorage.setItem('pocolog.roomy-view.v1',roomyView?'1':'0');}catch{}applyAccountView();$('viewControls').open=false;$('viewControlsSummary').focus();requestAnimationFrame(fitTableViewport);};
+$('viewControls').addEventListener('toggle',()=>{if($('viewControls').open)$('colorControls').open=false;});
+$('colorControls').addEventListener('toggle',()=>{if($('colorControls').open)$('viewControls').open=false;});
+document.addEventListener('click',event=>{if(!$('viewControls').contains(event.target))$('viewControls').open=false;});
+$('viewControls').addEventListener('keydown',event=>{if(event.key==='Escape'){$('viewControls').open=false;$('viewControlsSummary').focus();event.preventDefault();}});
 $('monthViewGoal').onclick=()=>setMonthView('goal');$('monthViewActual').onclick=()=>setMonthView('actual');$('monthViewTime').onclick=()=>setMonthView('time');
 function paintPairActualCell(button,pair){
  button.classList.toggle('has-pair-time',Object.keys(pair?.actuals||{}).length>0);
@@ -310,7 +329,7 @@ function showCoinDialog(kind,index){
   if(!current())return;
   const question=isAccount?`アカウント「${name}」と各ライバーの記録を削除しますか？`:`ライバー「${name}」の記録を削除しますか？`;
   if(!confirm(question))return;
-  if(isAccount){data.columns.splice(index,1);if(data.accountDetails)data.accountDetails.splice(index,1);data.rows.forEach(row=>{row.values.splice(index,1);if(row.pairActuals)row.pairActuals.splice(index,1);});}else data.rows.splice(index,1);
+  if(isAccount){if(focusedAccount===index)focusedAccount=null;else if(focusedAccount!==null&&focusedAccount>index)focusedAccount--;data.columns.splice(index,1);if(data.accountDetails)data.accountDetails.splice(index,1);data.rows.forEach(row=>{row.values.splice(index,1);if(row.pairActuals)row.pairActuals.splice(index,1);});}else data.rows.splice(index,1);
   save();render();
  };
  const total=measure(entries.map(entry=>entry.value));
@@ -351,8 +370,24 @@ function showPairActual(row,index){
  $('coinDialog').classList.remove('actual-account');$('coinDialog').classList.add('pair-actual');$('pairCheerEditor').hidden=false;
  $('coinDialogTitle').textContent=`${row.name} × ${account}`;$('coinDialogMonth').textContent=`${book.currentMonth} ／ アカウント別実績`;
  openEntityPlanner({kind:'pair',row,index,month:book.currentMonth,table,isCurrent:()=>table===data&&data.rows.includes(row)&&data.columns[index]===account});
- $('pairCurrentCheer').value=entityDetails().cheerK??'';$('pairCheerError').textContent='';updateOverlayViewport();$('coinDialog').showModal();$('coinDialog').scrollTop=0;
+ $('previousPairLiver').disabled=data.rows.indexOf(row)===0;$('nextPairLiver').disabled=data.rows.indexOf(row)===data.rows.length-1;$('pairPosition').textContent=`${data.rows.indexOf(row)+1} / ${data.rows.length}`;
+ updatePairGoalProgress();$('pairCurrentCheer').value=entityDetails().cheerK??'';$('pairCheerError').textContent='';updateOverlayViewport();$('coinDialog').showModal();$('coinDialog').scrollTop=0;
 }
+function updatePairGoalProgress(){
+ if(currentEntity?.kind!=='pair'||!currentEntity.isCurrent())return;
+ const raw=currentEntity.row.values[currentEntity.index].trim(),goal=/^[+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)?Number(raw):0,pair=entityDetails(),actual=pair.cheerK;
+ const hasGoal=Number.isFinite(goal)&&goal>0,progress=$('pairGoalProgress');progress.hidden=!hasGoal;
+ if(!hasGoal){$('pairGoalSummary').textContent='数値目標は未設定です。月目標の欄で設定できます。';return;}
+ const percent=Math.min(100,Math.max(0,(actual??0)/goal*100));progress.value=percent;progress.setAttribute('aria-valuetext',`${fmt(Math.floor(percent))}%`);
+ $('pairGoalSummary').textContent=`目標 ${fmt(goal)} K ／ 実績 ${actual===null?'未記録':fmt(actual)+' K'} ／ ${actual!==null&&actual>=goal?'達成済':`残り ${fmt(Math.max(0,goal-(actual??0)))} K`}（${fmt(Math.floor(percent))}%）`;
+}
+function movePairLiver(offset){
+ if(currentEntity?.kind!=='pair'||!currentEntity.isCurrent())return;
+ const index=data.rows.indexOf(currentEntity.row)+offset,row=data.rows[index];if(!row)return;
+ const account=currentEntity.index,date=currentEntity.date;$('coinDialog').close();showPairActual(row,account);if(date)selectEntityDay(date);
+ if(monthView==='time')focusActualEditor();else $('pairCurrentCheer').focus({preventScroll:true});
+}
+$('previousPairLiver').onclick=()=>movePairLiver(-1);$('nextPairLiver').onclick=()=>movePairLiver(1);
 $('pairCurrentCheer').addEventListener('input',()=>{
  if(currentEntity?.kind!=='pair')return;const input=$('pairCurrentCheer');if(!input.validity.valid){$('pairCheerError').textContent='0以上の獲得エールを入力してください。';return;}
  const entity=entityDetails(true);if(!entity)return;entity.cheerK=input.value===''?null:Number(input.value);$('pairCheerError').textContent='';updateActualTotals();stats();plannerSaved('現時点の獲得エールを保存しました。');
@@ -678,7 +713,7 @@ function render(){
   }
   cell(tr,'td','memo extra-col').append(input(r.memo,`${r.name}のメモ`,v=>r.memo=v));
  });
- stats();
+ applyAccountView();stats();
  if(monthChanged){const position=monthViewportPositions.get(viewportKey)||{top:0,left:0};wrap.scrollTop=position.top;wrap.scrollLeft=position.left;}
  if(!gridEditingEnabled)window.pocolog?.setEditing(false);
  requestAnimationFrame(fitTableViewport);
@@ -712,7 +747,7 @@ function stats(){
  const cols=data.columns.map((name,j)=>({name,...measure(data.rows.map(r=>r.values[j]))}));
  $('columns').replaceChildren();const colmax=Math.max(0,...cols.map(c=>c.number));cols.forEach(c=>bar($('columns'),c.name,c.number,colmax,`${fmt(c.number)} ／ ${c.circle} ／ ${c.filled}`));
  coinSummary('liverCoins',liverTotals);coinSummary('accountCoins',cols);
- refreshActualGrid();applyRowHighlights();
+ refreshActualGrid();applyRowHighlights();updatePairGoalProgress();
  const pairs=$('pairSummaryTable');pairs.replaceChildren();const pairHead=pairs.createTHead().insertRow();for(const title of ['ライバー','アカウント','獲得エール（K）','日数','時間'])cell(pairHead,'th').textContent=title;const pairBody=pairs.createTBody();
  for(const row of data.rows)data.columns.forEach((account,index)=>{const pair=row.pairActuals?.[index];if(!pair)return;const total=PocoCalendar.actualTotals(pair),tr=pairBody.insertRow();for(const value of [row.name,account,pair.cheerK===null?'未記録':fmt(pair.cheerK),total.records?total.days+'日':'未記録',total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'未記録'])cell(tr).textContent=value;});
  if(!pairBody.rows.length){const td=cell(pairBody.insertRow());td.colSpan=5;td.textContent='月実績の各アカウント欄から記録できます。';}
@@ -762,7 +797,7 @@ document.addEventListener('pointerdown',event=>{if(toolsMenu.open&&!toolsMenu.co
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&toolsMenu.open){event.preventDefault();toolsMenu.open=false;toolsMenu.querySelector('summary').focus({preventScroll:true});}});
 toolsMenu.addEventListener('toggle',positionToolsMenu);window.addEventListener('resize',positionToolsMenu);window.addEventListener('scroll',event=>{if(!toolsMenu.querySelector('.toolbar').contains(event.target))positionToolsMenu();},true);
 $('addRow').onclick=()=>{data.rows.push({name:'新しいライバー',memo:'',values:data.columns.map(()=>'')});save();render();revealGridRow(data.rows.length-1);markAddedName($('grid').tBodies[0].rows[data.rows.length-1].querySelector('.name-trigger'),'ライバーを追加しました。名前を押すと編集できます。');};
-$('addCol').onclick=()=>{if(data.columns.length>=100)return alert('アカウントは100列までです。');data.columns.push('新しいアカウント');if(data.accountDetails)data.accountDetails.push({memo:'',schedule:{}});data.rows.forEach(r=>{r.values.push('');if(r.pairActuals)r.pairActuals.push(null);});save();render();revealGridColumn(data.columns.length-1);markAddedName($('grid').tHead.rows[0].cells[data.columns.length+2].querySelector('.name-trigger'),'アカウントを追加しました。名前を押すと編集できます。');};
+$('addCol').onclick=()=>{if(data.columns.length>=100)return alert('アカウントは100列までです。');focusedAccount=null;data.columns.push('新しいアカウント');if(data.accountDetails)data.accountDetails.push({memo:'',schedule:{}});data.rows.forEach(r=>{r.values.push('');if(r.pairActuals)r.pairActuals.push(null);});save();render();revealGridColumn(data.columns.length-1);markAddedName($('grid').tHead.rows[0].cells[data.columns.length+2].querySelector('.name-trigger'),'アカウントを追加しました。名前を押すと編集できます。');};
 $('metric').onchange=stats;
 $('tableMode').onclick=()=>{const expanded=$('tablePanel').classList.toggle('table-detail');$('tableMode').setAttribute('aria-pressed',String(expanded));$('tableMode').textContent=expanded?'一覧に戻る':'編集・詳細';toolsMenu.open=false;refreshTableViewport();};
 $('refresh').onclick=()=>{try{localStorage.setItem(KEY,JSON.stringify(book));location.reload();}catch{$('status').textContent='保存できないため更新を中止しました。バックアップを保存してください。';}};
