@@ -143,6 +143,13 @@ button:focus-visible,summary:focus-visible,.file:focus-within{outline:2px solid 
  .table-bar .primary-tools button{min-height:36px;font-size:11px}
  #currentDateTime{font-size:11px}#currentTime{font-size:13px}
 }
+#grid button.added-name{background:#d8efdf;box-shadow:inset 0 0 0 2px #287454}
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){
+ .table-panel:not(.table-detail) #grid{min-width:var(--compact-table-min-width,286px)}
+}
+@media (min-width:701px) and (min-height:501px), (min-width:1001px){
+ .table-panel:not(.table-detail) #grid{min-width:max(920px,calc(264px + var(--account-count,15)*40px))}
+}
 </style>
 <header><h1>◉ ポコログ</h1><small>応援の記録を、わかりやすく。</small></header>
 <main><div class="page-title"><h2>ポコログ</h2><label class="month-label">記録月 <input type="month" id="month" aria-label="記録する月"></label></div><p class="intro">ライバーごとに、自分の各アカウントのエール数を記録しましょう。</p>

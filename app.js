@@ -384,7 +384,23 @@ $('scheduleDialog').addEventListener('close',()=>{scheduleRow=null;});
 $('closingTimeInput').onchange=()=>commitSchedule('closingTime',$('closingTimeInput').value);
 $('releaseUndecided').onclick=()=>commitSchedule('releaseDate','未定');
 $('releaseClear').onclick=()=>commitSchedule('releaseDate','');
+let renderedMonth=null;
+const monthViewportPositions=new Map();
+function revealGridColumn(index){
+ const table=$('grid'),wrap=table.parentElement,cell=table.tHead?.rows[0]?.cells[index+3];if(!cell)return;
+ const bounds=wrap.getBoundingClientRect(),rect=cell.getBoundingClientRect(),sticky=table.tHead.rows[0].cells[0].getBoundingClientRect().width;
+ if(rect.left<bounds.left+sticky)wrap.scrollLeft-=bounds.left+sticky-rect.left;
+ else if(rect.right>bounds.right)wrap.scrollLeft+=rect.right-bounds.right;
+}
+function markAddedName(element,message){
+ if(!element)return;element.classList.add('added-name');setTimeout(()=>element.classList.remove('added-name'),2500);
+ element.focus({preventScroll:true});$('orderStatus').textContent=message;
+}
 function render(){
+ const wrap=$('grid').parentElement;
+ const monthChanged=renderedMonth!==book.currentMonth;
+ if(monthChanged&&renderedMonth)monthViewportPositions.set(renderedMonth,{top:wrap.scrollTop,left:wrap.scrollLeft});
+ renderedMonth=book.currentMonth;
  if(!canUndoCheer())dismissCheerUndo();
  if($('findLiverDialog').open)$('findLiverDialog').close();
  clearRowDrag();
@@ -392,7 +408,7 @@ function render(){
  closeCheerPicker();
  if($('coinDialog').open)$('coinDialog').close();
  if($('scheduleDialog').open)$('scheduleDialog').close();
- const table=$('grid');table.replaceChildren();const head=table.createTHead().insertRow();
+ const table=$('grid');table.style.setProperty('--account-count',data.columns.length);table.style.setProperty('--compact-table-min-width',data.columns.length>15?`${106+data.columns.length*13}px`:'286px');table.replaceChildren();const head=table.createTHead().insertRow();
  cell(head,'th').textContent='ライバー名';
  sortHeader(head,'closingTime','締め','closing-col');sortHeader(head,'releaseDate','解禁日','release-col');
  data.columns.forEach((c,j)=>{
@@ -410,7 +426,9 @@ function render(){
   const coins=cell(tr,'td','total coin-total extra-col');coins.dataset.coinRow=i;
   cell(tr,'td','memo extra-col').append(input(r.memo,`${r.name}のメモ`,v=>r.memo=v));
  });
- stats();requestAnimationFrame(fitTableViewport);
+ stats();
+ if(monthChanged){const position=monthViewportPositions.get(book.currentMonth)||{top:0,left:0};wrap.scrollTop=position.top;wrap.scrollLeft=position.left;}
+ requestAnimationFrame(fitTableViewport);
 }
 const coinText=result=>fmt(result.coins)+(result.unknown?` ＋ 未算定${result.unknown}件`:'');
 function coinSummary(id,entries){
@@ -484,8 +502,8 @@ function positionToolsMenu(){
 document.addEventListener('pointerdown',event=>{if(toolsMenu.open&&!toolsMenu.contains(event.target))toolsMenu.open=false;});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&toolsMenu.open){event.preventDefault();toolsMenu.open=false;toolsMenu.querySelector('summary').focus({preventScroll:true});}});
 toolsMenu.addEventListener('toggle',positionToolsMenu);window.addEventListener('resize',positionToolsMenu);window.addEventListener('scroll',event=>{if(!toolsMenu.querySelector('.toolbar').contains(event.target))positionToolsMenu();},true);
-$('addRow').onclick=()=>{data.rows.push({name:'新しいライバー',memo:'',values:data.columns.map(()=>'')});save();render();};
-$('addCol').onclick=()=>{if(data.columns.length>=100)return alert('アカウントは100列までです。');data.columns.push('新しいアカウント');if(data.accountDetails)data.accountDetails.push({memo:'',schedule:{}});data.rows.forEach(r=>r.values.push(''));save();render();};
+$('addRow').onclick=()=>{data.rows.push({name:'新しいライバー',memo:'',values:data.columns.map(()=>'')});save();render();revealGridRow(data.rows.length-1);markAddedName($('grid').tBodies[0].rows[data.rows.length-1].querySelector('.name-trigger'),'ライバーを追加しました。名前を押すと編集できます。');};
+$('addCol').onclick=()=>{if(data.columns.length>=100)return alert('アカウントは100列までです。');data.columns.push('新しいアカウント');if(data.accountDetails)data.accountDetails.push({memo:'',schedule:{}});data.rows.forEach(r=>r.values.push(''));save();render();revealGridColumn(data.columns.length-1);markAddedName($('grid').tHead.rows[0].cells[data.columns.length+2].querySelector('.name-trigger'),'アカウントを追加しました。名前を押すと編集できます。');};
 $('metric').onchange=stats;
 $('tableMode').onclick=()=>{const expanded=$('tablePanel').classList.toggle('table-detail');$('tableMode').setAttribute('aria-pressed',String(expanded));$('tableMode').textContent=expanded?'一覧に戻る':'編集・詳細';toolsMenu.open=false;refreshTableViewport();};
 $('refresh').onclick=()=>{try{localStorage.setItem(KEY,JSON.stringify(book));location.reload();}catch{$('status').textContent='保存できないため更新を中止しました。バックアップを保存してください。';}};
