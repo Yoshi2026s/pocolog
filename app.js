@@ -1,6 +1,6 @@
 const KEY = 'pocolog.v1';
 const photoLivers = ['どんちゃん','かつにぃ','ともちゃん','あすぽん','むぎたん','しーたま','れなぴ','ラピママ','武井','こたちゃま','みさき','EMMA','猫','あおいちゃん','おはぎ','スパたん','たぁ坊','アルちゃん','スピカちゃん'];
-const initial = {columns:['こじ','こた','もえ','寿司','イカ','焼肉','ケン','ガヤ','お餅','アラン','シオン','レオン','ヨシ'],rows:[]};
+const initial = {columns:['こじ','こた','もえ','寿司','イカ','焼肉','ケン','ガヤ','お餅','アラン','シオン','レオン','ヨシ','海斗','レオ'],rows:[]};
 const $ = id => document.getElementById(id);
 let data, book;
 function valid(d,month){return d && Array.isArray(d.columns) && d.columns.length<=100 && d.columns.every(c=>typeof c==='string') && Array.isArray(d.rows) && d.rows.length<=10000 && d.rows.every(r=>typeof r.name==='string' && typeof r.memo==='string' && (r.closingTime===undefined||typeof r.closingTime==='string') && (r.releaseDate===undefined||typeof r.releaseDate==='string') && Array.isArray(r.values) && r.values.length===d.columns.length && r.values.every(v=>typeof v==='string') && PocoCalendar.validSchedule(r.schedule,month)) && PocoCalendar.validAccounts(d,month);}
@@ -291,22 +291,20 @@ $('coinDialogClose').onclick=()=>$('coinDialog').close();
 let scheduleRow=null;
 function showSchedule(row){
  scheduleRow=row;$('scheduleTitle').textContent=`${row.name}の日程`;
- $('closingTimeInput').value=row.closingTime||'';$('releaseDateInput').value=row.releaseDate||'';
+ $('closingTimeInput').value=row.closingTime||'';$('releaseDateInput').value=PocoRows.formatRelease(row.releaseDate,book.currentMonth);
  $('scheduleDialog').showModal();
 }
 function scheduleField(row,field,label){
- const button=document.createElement('button');button.type='button';button.className='schedule-field';button.setAttribute('aria-label',`${row.name}の${label}`);button.title=row[field]||'';
- const value=row[field]||'';
- if(field==='releaseDate'&&value.includes(' ')){
-  const [date,...time]=value.split(' ');const day=document.createElement('span');day.textContent=date;const clock=document.createElement('span');clock.textContent=time.join(' ');button.append(day,clock);
- }else{button.textContent=value;}
+ const button=document.createElement('button');button.type='button';button.className='schedule-field';button.setAttribute('aria-label',`${row.name}の${label}`);button.title=field==='releaseDate'?PocoRows.formatRelease(row[field],book.currentMonth):row[field]||'';
+ const value=button.title;
+ button.textContent=value;
  button.onclick=()=>showSchedule(row);return button;
 }
 $('scheduleClose').onclick=()=>$('scheduleDialog').close();
 $('scheduleDialog').addEventListener('close',()=>{scheduleRow=null;});
 $('scheduleForm').onsubmit=event=>{
  event.preventDefault();if(!scheduleRow||!data.rows.includes(scheduleRow))return;
- scheduleRow.closingTime=$('closingTimeInput').value.trim();scheduleRow.releaseDate=$('releaseDateInput').value.trim();rowSort={field:null,direction:1,month:book.currentMonth};save();render();
+ scheduleRow.closingTime=$('closingTimeInput').value.trim();scheduleRow.releaseDate=PocoRows.formatRelease($('releaseDateInput').value,book.currentMonth);rowSort={field:null,direction:1,month:book.currentMonth};save();render();
 };
 function render(){
  clearRowDrag();
@@ -389,7 +387,7 @@ $('refresh').onclick=()=>{try{localStorage.setItem(KEY,JSON.stringify(book));loc
 function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('download').onclick=()=>download(JSON.stringify(book,null,2),'application/json','pocolog-backup.json');
 $('upload').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>10000000)throw Error();const next=JSON.parse(await f.text());if(!validBook(next)&&!valid(next,book.currentMonth))throw Error();if(confirm('全月の記録をバックアップの内容で置き換えますか？')){book=validBook(next)?next:{version:2,currentMonth:book.currentMonth,months:{[book.currentMonth]:next}};addMoeAccount();addPhotoLivers();rowSort={field:null,direction:1,month:book.currentMonth};data=book.months[book.currentMonth];$('month').value=book.currentMonth;save();render();}}catch{alert('読み込めませんでした。ポコログのJSONバックアップを選択してください。');}e.target.value='';};
-$('csv').onclick=()=>{const quote=s=>'"'+String(s).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';const rows=[['ライバー名','締め時間','解禁日',...data.columns,'エール合計（K）','必要コイン（換算済み分）','未算定セル数','メモ'],...data.rows.map(r=>{const total=measure(r.values);return [r.name,r.closingTime||'',r.releaseDate||'',...r.values,total.number,total.coins,total.unknown,r.memo];})];download('\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog.csv');};
+$('csv').onclick=()=>{const quote=s=>'"'+String(s).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';const rows=[['ライバー名','締め時間','解禁日',...data.columns,'エール合計（K）','必要コイン（換算済み分）','未算定セル数','メモ'],...data.rows.map(r=>{const total=measure(r.values);return [r.name,r.closingTime||'',PocoRows.formatRelease(r.releaseDate,book.currentMonth),...r.values,total.number,total.coins,total.unknown,r.memo];})];download('\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog.csv');};
 const reference=$('coinReference');const referenceHead=reference.createTHead().insertRow();
 cell(referenceHead,'th').textContent='エール（K）';cell(referenceHead,'th').textContent='必要コイン（条件1）';
 const referenceBody=reference.createTBody();PocoCoins.tiers.forEach(([level,coins])=>{const row=referenceBody.insertRow();cell(row).textContent=fmt(level);cell(row).textContent=fmt(coins);});

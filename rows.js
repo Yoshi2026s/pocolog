@@ -8,13 +8,19 @@
   }
   function releaseKey(value, month) {
     const text = normalize(value).replace(/\s*[(（]仮[)）]\s*$/, '');
+    const dayOnly = text.match(/^(\d{1,2})日?$/);
+    if(dayOnly){const day=Number(dayOnly[1]);return day>=1 && day<=new Date(Number(month.slice(0,4)),Number(month.slice(5,7)),0).getDate()?day:null;}
     const match = text.match(/^(?:(\d{4})[/-])?(\d{1,2})[/-](\d{1,2})(?:[ T]+(\d{1,2}):(\d{2}))?$/);
     if (!match) return null;
     const year = Number(match[1] ?? month.slice(0, 4));
     const mon = Number(match[2]), day = Number(match[3]), hour = Number(match[4] ?? 0), minute = Number(match[5] ?? 0);
     if (year < 100 || year > 9999 || mon < 1 || mon > 12 || day < 1 || hour > 23 || minute > 59) return null;
     const date = new Date(Date.UTC(year, mon - 1, day, hour, minute));
-    return date.getUTCFullYear() === year && date.getUTCMonth() === mon - 1 && date.getUTCDate() === day ? date.getTime() : null;
+    return date.getUTCFullYear() === year && date.getUTCMonth() === mon - 1 && date.getUTCDate() === day ? day : null;
+  }
+  function formatRelease(value, month){
+    const day=releaseKey(value,month);
+    return day===null?String(value??'').trim():`${day}日${/[(（]仮[)）]\s*$/.test(value)?'(仮)':''}`;
   }
   function sortRows(rows, field, direction, month) {
     const key = field === 'closingTime' ? row => closingKey(row.closingTime) : row => releaseKey(row.releaseDate, month);
@@ -28,5 +34,5 @@
     if (![from, to].every(index => Number.isInteger(index) && index >= 0 && index < rows.length)) return result;
     const [row] = result.splice(from, 1); result.splice(to, 0, row); return result;
   }
-  globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, sortRows, moveRow });
+  globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, formatRelease, sortRows, moveRow });
 })();

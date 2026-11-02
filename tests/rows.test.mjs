@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import '../rows.js';
-const { closingKey, releaseKey, sortRows, moveRow } = globalThis.PocoRows;
+const { closingKey, releaseKey, formatRelease, sortRows, moveRow } = globalThis.PocoRows;
 
 test('closing times use chronological order and validate inputs', () => {
   assert.equal(closingKey('0時'), 0); assert.equal(closingKey('１３時'), 780);
@@ -10,7 +10,11 @@ test('closing times use chronological order and validate inputs', () => {
 });
 test('release dates handle times, tentative labels and invalid calendar dates', () => {
   assert.equal(releaseKey('11/6 0:00(仮)', '2026-11'), releaseKey('2026/11/6 0:00', '2026-11'));
-  assert.ok(releaseKey('11/3 0:00', '2026-11') < releaseKey('11/3 12:00', '2026-11'));
+  assert.equal(releaseKey('11/3 0:00', '2026-11'), releaseKey('11/3 12:00', '2026-11'));
+  assert.equal(formatRelease('11/6 0:00(仮)','2026-11'),'6日(仮)');
+  assert.equal(formatRelease('３','2026-11'),'3日');
+  assert.equal(formatRelease('未定','2026-11'),'未定');
+  assert.equal(releaseKey('31日','2026-11'),null);
   assert.equal(releaseKey('2/29 0:00', '2026-02'), null);
   assert.notEqual(releaseKey('2/29 0:00', '2028-02'), null);
   for (const value of ['', '未定', '11/31 0:00', '11/1 25:00']) assert.equal(releaseKey(value, '2026-11'), null);
@@ -25,7 +29,7 @@ test('sorts remain stable, put unset dates last in both directions, and preserve
   const before = structuredClone(rows);
   assert.deepEqual(sortRows(rows,'closingTime',1,'2026-11').map(r=>r.name),['B','A','C','D']);
   assert.deepEqual(sortRows(rows,'closingTime',-1,'2026-11').map(r=>r.name),['A','C','B','D']);
-  assert.deepEqual(sortRows(rows,'releaseDate',1,'2026-11').map(r=>r.name),['C','B','A','D']);
+  assert.deepEqual(sortRows(rows,'releaseDate',1,'2026-11').map(r=>r.name),['B','C','A','D']);
   assert.deepEqual(sortRows(rows,'releaseDate',-1,'2026-11').map(r=>r.name),['B','C','A','D']);
   assert.deepEqual(rows,before); assert.equal(sortRows(rows,'closingTime',1,'2026-11')[1],rows[0]);
 });
