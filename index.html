@@ -92,10 +92,32 @@
  .shared-panel>.table-tools>summary{font-size:11px;padding:5px 2px}
  .shared-panel>button{padding-left:6px;padding-right:6px}
 }
+/* Touch feedback and overlays keep context visible without widening the grid. */
+#grid button.cheer-field[aria-expanded=true]{background:#d8efdf;outline:2px solid #287454;outline-offset:-2px}
+#grid tr.active-cheer-row>td:first-child,#grid th.active-cheer-account{background:#d8efdf;color:#174f3a}
+.cheer-picker-context{position:sticky;top:-4px;background:#edf5ef;color:#236b51;font-size:12px;font-weight:600;padding:8px 5px;line-height:1.4;overflow-wrap:anywhere;border-bottom:1px solid #cedcd2;z-index:1}
+button,summary,.file{-webkit-tap-highlight-color:#28745426}
+button:focus-visible,summary:focus-visible,.file:focus-within{outline:2px solid #287454;outline-offset:2px}
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){
+ dialog{max-height:calc(100dvh - 24px);width:calc(100vw - 20px);padding:12px;overscroll-behavior:contain;scroll-padding-top:64px}
+ dialog .dialog-header{position:sticky;top:-12px;z-index:5;background:#fff;padding:10px 0 8px;margin-top:-2px;border-bottom:1px solid #e5ebe6}
+ dialog .dialog-header h2{font-size:16px;line-height:1.4;margin:auto 0}
+ dialog .dialog-header button{min-height:40px;flex-shrink:0}
+ dialog button:not(.calendar-day),dialog .file{min-height:40px}
+ dialog input,dialog select,dialog textarea{font-size:16px}
+ .entity-calendar .calendar-day{min-height:44px}
+ .shared-panel>button,.shared-panel>.table-tools>summary{min-height:32px}
+ .shared-panel>.table-tools>summary{display:flex;align-items:center;gap:3px}
+ .shared-panel>.table-tools>summary::before{content:'▸';font-size:10px}
+ .shared-panel>.table-tools[open]>summary::before{content:'▾'}
+ .table-tools .toolbar{overscroll-behavior:contain;scrollbar-width:thin}
+ .table-tools .toolbar>button,.table-tools .toolbar>.file{min-height:40px;width:100%;text-align:left}
+ #grid button.schedule-field:active,#grid button.name-trigger:active{background:#d8efdf}
+}
 </style>
 <header><h1>◉ ポコログ</h1><small>応援の記録を、わかりやすく。</small></header>
 <main><div class="page-title"><h2>ポコログ</h2><label class="month-label">記録月 <input type="month" id="month" aria-label="記録する月"></label></div><p class="intro">ライバーごとに、自分の各アカウントのエール数を記録しましょう。</p>
-<section class="panel shared-panel"><strong>みんなで共有</strong><p id="sharedStatus" role="status">共有保存の設定を確認しています…</p><button id="refresh" title="入力を保存して画面を再読み込み">更新</button><details class="table-tools"><summary>その他</summary><div class="toolbar"><button id="tableMode" type="button" aria-pressed="false">編集・詳細</button><button id="download">バックアップ保存</button><label class="file">バックアップ読込<input type="file" id="upload" accept="application/json,.json" hidden></label><button id="csv">選択月をCSV出力</button><span id="status" role="status"></span><details class="usage-guide"><summary>使い方</summary><p class="note">ライバー名・アカウント名を押すと、それぞれの必要コイン合計を確認できます。ライバー名のドラッグで行を移動できます（キーボードはAlt＋↑↓）。締め時間・解禁日の見出しを押すと昇順・降順に並び替えます。並び順も「共有先に保存」で共有できます。日程は欄を押して編集できます。名前の編集・削除は、名前を押して開く画面から行えます。エール数は選択リスト、メモは直接入力で変更できます。エール欄を押すと、毎回空白を初期選択にしてリストが開きます。〇・1〜48から選択します（数字は K 単位、例：10 は10K）。消す場合はリスト先頭の空白を選んでください。空欄と 0 は区別します。○・〇・◯ は仮チェックとして件数のみ集計し、エール合計（K）には含めません。<br>入力はこのブラウザに自動保存します。共有先への反映は「共有先に保存」で行います。大切な記録の保管には、バックアップ保存をご利用ください。</p></details></div></details><button id="sharedSave" class="primary" disabled>共有先に保存</button> <button id="sharedReload" disabled>共有の最新版を読込</button><p class="note">共有先に接続した場合、変更後に「共有先に保存」を押すと他の人にも反映されます。</p></section>
+<section class="panel shared-panel"><strong>みんなで共有</strong><p id="sharedStatus" role="status">共有保存の設定を確認しています…</p><button id="refresh" title="入力を保存して画面を再読み込み">更新</button><details class="table-tools"><summary>その他</summary><div class="toolbar"><button id="tableMode" type="button" aria-pressed="false">編集・詳細</button><button id="download">バックアップ保存</button><label class="file">バックアップ読込<input type="file" id="upload" accept="application/json,.json" hidden></label><button id="csv">選択月をCSV出力</button><span id="status" role="status"></span><details class="usage-guide"><summary>使い方</summary><p class="note">ライバー名・アカウント名を押すと、それぞれの必要コイン合計を確認できます。スマホではライバー名を長押しして行を移動します。指ですぐ動かすと一覧をスクロールできます（マウスはドラッグ、キーボードはAlt＋↑↓）。締め時間・解禁日の見出しを押すと昇順・降順に並び替えます。並び順も「共有先に保存」で共有できます。日程は欄を押して編集できます。名前の編集・削除は、名前を押して開く画面から行えます。エール数は選択リスト、メモは直接入力で変更できます。エール欄を押すと、毎回空白を初期選択にしてリストが開きます。〇・1〜48から選択します（数字は K 単位、例：10 は10K）。消す場合はリスト先頭の空白を選んでください。空欄と 0 は区別します。○・〇・◯ は仮チェックとして件数のみ集計し、エール合計（K）には含めません。<br>入力はこのブラウザに自動保存します。共有先への反映は「共有先に保存」で行います。大切な記録の保管には、バックアップ保存をご利用ください。</p></details></div></details><button id="sharedSave" class="primary" disabled>共有先に保存</button> <button id="sharedReload" disabled>共有の最新版を読込</button><p class="note">共有先に接続した場合、変更後に「共有先に保存」を押すと他の人にも反映されます。</p></section>
 <div class="cards"><div class="card"><span>ライバー</span><strong id="people"></strong></div><div class="card"><span>エール（K）</span><strong id="sum"></strong></div><div class="card"><span>必要コイン</span><strong id="coinSum"></strong><small id="coinUnknown"></small></div><div class="card"><span>〇</span><strong id="circles"></strong></div><div class="card"><span>記入数</span><strong id="filled"></strong></div></div>
 <section class="panel table-panel" id="tablePanel"><div class="table-bar"><div class="primary-tools"><time id="currentDateTime" aria-label="現在の日本時間"><span id="currentDate"></span><span id="currentTime"></span></time><button class="primary" id="addRow" aria-label="ライバーを追加">＋ライバー</button><button id="addCol" aria-label="アカウントを追加">＋アカウント</button></div></div>
 <span id="orderStatus" class="sr-only" role="status"></span><div class="table-wrap"><table id="grid" aria-label="ポコログの編集表"></table></div></section>
