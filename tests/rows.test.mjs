@@ -50,3 +50,8 @@ test('old tables gain missing accounts once without changing values, notes or sc
  assert.equal(PocoRows.addExtraAccounts(book),false);assert.equal(table.columns.includes('海斗'),false);
  const partial={months:{'2026-11':{columns:['ヨシ','海斗'],rows:[{values:['1','2']}]}}};PocoRows.addExtraAccounts(partial);assert.deepEqual(partial.months['2026-11'].rows[0].values,['1','2','']);
 });
+
+test('account migration keeps pair actuals aligned and never assigns old results to new accounts',()=>{
+ const first={cheerK:3,memo:'ヨシ'},last={cheerK:4,memo:'別'};const table={columns:['ヨシ','別'],rows:[{values:['1','2'],pairActuals:[first,last]}]};const book={months:{'2026-11':table}};
+ PocoRows.addExtraAccounts(book);assert.deepEqual(table.columns,['ヨシ','海斗','レオ','別']);assert.deepEqual(table.rows[0].values,['1','','','2']);assert.deepEqual(table.rows[0].pairActuals,[first,null,null,last]);
+});

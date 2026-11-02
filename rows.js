@@ -33,7 +33,7 @@
         if(existing>=0){anchor=existing;continue;}
         const index=++anchor;
         table.columns.splice(index,0,name);
-        table.rows.forEach(row=>row.values.splice(index,0,''));
+        table.rows.forEach(row=>{row.values.splice(index,0,'');if(row.pairActuals)row.pairActuals.splice(index,0,null);});
         if(table.accountDetails)table.accountDetails.splice(index,0,{memo:'',schedule:{}});
       }
     }

@@ -91,3 +91,13 @@ test('bulk entry validates all dates before committing and missing candidates ex
  assert.deepEqual(PocoCalendar.missingActualDates(entity,'2026-11','2026-11-03'),['2026-11-01','2026-11-03']);
  assert.deepEqual(PocoCalendar.missingActualDates(entity,'2026-11','2026-10-31'),[]);
 });
+
+test('account-by-liver actuals are optional, isolated and keep zero distinct from blanks',()=>{
+ const {pairDetails,validPairActuals,setActual}=PocoCalendar;
+ const first={name:'A',values:['10','2'],memo:'保持',actuals:{'2026-11-01':{earnedDay:true,minutes:30,cheerK:7}}},second={name:'B',values:['1',''],memo:''};const table={columns:['こじ','こた'],rows:[first,second]};
+ pairDetails(table,first,0);assert.equal(first.pairActuals,undefined);
+ const pair=pairDetails(table,first,0,true);pair.cheerK=0;setActual(pair,'2026-11-02',{earnedDay:true,minutes:90,cheerK:null},'2026-11');
+ assert.equal(pairDetails(table,first,1).cheerK,null);assert.equal(pairDetails(table,second,0).cheerK,null);assert.deepEqual(first.values,['10','2']);assert.equal(first.actuals['2026-11-01'].cheerK,7);assert.equal(validPairActuals(first,table.columns,'2026-11'),true);
+ assert.equal(validPairActuals({...first,pairActuals:[{...pair,cheerK:-1},null]},table.columns,'2026-11'),false);assert.equal(validPairActuals(first,['one'],'2026-11'),false);
+ const restored=JSON.parse(JSON.stringify(table));assert.equal(restored.rows[0].pairActuals[0].cheerK,0);assert.equal(restored.rows[0].pairActuals[1],null);
+});

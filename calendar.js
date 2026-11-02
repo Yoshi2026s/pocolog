@@ -104,5 +104,15 @@
       return !actual?Boolean(entity.schedule?.[date]?.trim()):actual.minutes===null&&(Boolean(entity.schedule?.[date]?.trim())||actual.earnedDay||actual.cheerK!==null);
     }).map(item=>item.date);
   }
-  globalThis.PocoCalendar = Object.freeze({ monthInfo, dates, validSchedule, validAccounts, accountDetails, setDay, validActuals, setActual, actualTotals, splitActualRange, addActualMinutes, bulkActuals, missingActualDates });
+  function validPairActuals(row,columns,month){
+    return row.pairActuals===undefined||(Array.isArray(row.pairActuals)&&row.pairActuals.length===columns.length&&row.pairActuals.every(value=>value===null||value&&typeof value==='object'&&!Array.isArray(value)&&typeof value.memo==='string'&&(value.cheerK===null||typeof value.cheerK==='number'&&Number.isFinite(value.cheerK)&&value.cheerK>=0&&value.cheerK<=1e9)&&validActuals(value.actuals,month)&&validSchedule(value.schedule,month)));
+  }
+  function pairDetails(table,row,index,create=false){
+    if(!table.rows.includes(row)||index<0||index>=table.columns.length)return null;
+    const blank=()=>({cheerK:null,memo:''});
+    if(!create)return row.pairActuals?.[index]||blank();
+    if(!row.pairActuals)row.pairActuals=table.columns.map(()=>null);
+    if(!row.pairActuals[index])row.pairActuals[index]=blank();return row.pairActuals[index];
+  }
+  globalThis.PocoCalendar = Object.freeze({ monthInfo, dates, validSchedule, validAccounts, accountDetails, setDay, validActuals, setActual, actualTotals, splitActualRange, addActualMinutes, bulkActuals, missingActualDates, validPairActuals, pairDetails });
 })();

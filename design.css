@@ -126,6 +126,11 @@ dialog .dialog-header{background:var(--surface);border-bottom:1px solid var(--li
 @media(prefers-reduced-motion:reduce){button,.file,select{transition:none}dialog::backdrop{backdrop-filter:none}}
 
 .month-view-switch{display:inline-flex;align-items:center;gap:3px;padding:3px;border:1px solid #cbded0;border-radius:10px;background:#edf3e9;flex-shrink:0}.month-view-switch button{min-height:34px;padding:7px 14px;border:0;border-radius:7px;background:transparent;color:#536e60;font-size:13px}.month-view-switch button[aria-pressed=true]{background:#226c5e;color:white;box-shadow:0 2px 5px #194f471c}.month-view-switch button:focus-visible{outline-offset:1px}
-#grid .actual-metric{overflow-wrap:anywhere;display:block;width:100%;min-height:36px;border:0;border-radius:0;padding:6px 2px;background:transparent;color:#285b4a;font-size:14px;font-variant-numeric:tabular-nums}#grid .actual-metric.is-unrecorded{color:#7c8980;font-size:12px;font-weight:400}#grid .actual-metric:hover{background:#e6f0e4}#grid th.actual-metric-col{font-size:12px;white-space:normal;padding:4px}
-.table-panel.actual-view:not(.table-detail) #grid{min-width:286px}
-@media(max-width:700px), (max-height:500px) and (max-width:1000px){.month-view-switch button{font-size:11px;min-height:30px;padding:5px 12px}.month-view-switch{border-radius:8px}#grid .actual-metric{font-size:10px;min-height:24px;padding:3px 1px;white-space:normal;line-height:18px}#grid .actual-metric.is-unrecorded{font-size:9px}#grid th.actual-metric-col{font-size:10px;padding:3px 1px}}
+
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){.month-view-switch button{font-size:11px;min-height:30px;padding:5px 12px}.month-view-switch{border-radius:8px}}
+
+#pairCheerEditor[hidden]{display:none}.pair-actual .dialog-total,.pair-actual .name-actions,.pair-actual #coinDialogUnknown,.pair-actual .entity-breakdown,.pair-actual #daySchedule,.pair-actual #selectedDayTitle,.pair-actual #planDayNavigation,.pair-actual #dailyActualCheerLabel{display:none}.pair-actual .actual-inputs{grid-template-columns:1fr 1fr}.pair-actual #pairCurrentCheer{font-size:22px;font-weight:650;color:#226c5e;min-height:50px}#grid .pair-actual-cell{font-variant-numeric:tabular-nums}
+
+#openLegacyLiverActual[hidden]{display:none}
+
+#grid .pair-actual-cell.has-pair-time{box-shadow:inset 0 -2px #94b8aa}
