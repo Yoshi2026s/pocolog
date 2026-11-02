@@ -82,5 +82,27 @@
     }
     return result;
   }
-  globalThis.PocoCalendar = Object.freeze({ monthInfo, dates, validSchedule, validAccounts, accountDetails, setDay, validActuals, setActual, actualTotals, splitActualRange, addActualMinutes });
+  function bulkActuals(actuals,month,options){
+    const info=monthInfo(month),{from,to,weekdays,minutes,countDay,mode}=options;
+    if(!info||!validActuals(actuals,month)||!Number.isInteger(from)||!Number.isInteger(to)||from<1||to>info.days||from>to)throw Error('記録月の範囲内で開始日・終了日を指定してください。');
+    if(!Array.isArray(weekdays)||weekdays.some(day=>!Number.isInteger(day)||day<0||day>6)||!weekdays.length)throw Error('対象の曜日を選んでください。');
+    if(typeof countDay!=='boolean'||!['missing','add','replace'].includes(mode)||minutes!==null&&(!Number.isInteger(minutes)||minutes<0||minutes>1440))throw Error('時間・反映方法を確認してください。');
+    if(minutes===null&&!countDay)throw Error('時間か「日数にも数える」を指定してください。');
+    const next=structuredClone(actuals||{}),applied=[],skipped=[];
+    for(const day of dates(month).filter(day=>day.day>=from&&day.day<=to&&weekdays.includes(day.weekday))){
+      const old=next[day.date]||{earnedDay:false,minutes:null,cheerK:null};
+      if(mode==='missing'&&old.minutes!==null){skipped.push(day.date);continue;}
+      const time=minutes===null?old.minutes:mode==='add'?(old.minutes??0)+minutes:minutes;
+      if(time>1440)throw Error(`${day.day}日の合計が24時間を超えます。反映していません。`);
+      next[day.date]={...old,earnedDay:old.earnedDay||countDay,minutes:time};applied.push(day.date);
+    }
+    return {next,applied,skipped};
+  }
+  function missingActualDates(entity,month,today){
+    return dates(month).filter(({date})=>{
+      if(date>today)return false;const actual=entity.actuals?.[date];
+      return !actual?Boolean(entity.schedule?.[date]?.trim()):actual.minutes===null&&(Boolean(entity.schedule?.[date]?.trim())||actual.earnedDay||actual.cheerK!==null);
+    }).map(item=>item.date);
+  }
+  globalThis.PocoCalendar = Object.freeze({ monthInfo, dates, validSchedule, validAccounts, accountDetails, setDay, validActuals, setActual, actualTotals, splitActualRange, addActualMinutes, bulkActuals, missingActualDates });
 })();

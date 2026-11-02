@@ -72,3 +72,22 @@ test('time additions preserve cheers and dates, count once, floor subtraction an
  assert.equal(addActualMinutes(before,{'2026-11-03':-60},'2026-11')['2026-11-03'].minutes,0);
  assert.throws(()=>addActualMinutes(before,{'2026-12-01':10},'2026-11'));
 });
+
+test('bulk time entry filters weekdays, protects zero, and preserves cheers',()=>{
+ const before={'2026-11-02':{earnedDay:true,minutes:0,cheerK:3},'2026-11-03':{earnedDay:true,minutes:60,cheerK:4},'2026-11-04':{earnedDay:true,minutes:null,cheerK:5}};
+ const options={from:1,to:7,weekdays:[1,2,3,4,5],minutes:30,countDay:true,mode:'missing'};
+ const result=PocoCalendar.bulkActuals(before,'2026-11',options);
+ assert.deepEqual(result.applied,['2026-11-04','2026-11-05','2026-11-06']);assert.deepEqual(result.skipped,['2026-11-02','2026-11-03']);assert.equal(result.next['2026-11-02'].minutes,0);assert.equal(result.next['2026-11-04'].cheerK,5);assert.equal(result.next['2026-11-04'].minutes,30);assert.equal(before['2026-11-04'].minutes,null);
+ assert.equal(PocoCalendar.bulkActuals(before,'2026-11',{...options,mode:'add'}).next['2026-11-03'].minutes,90);
+ assert.equal(PocoCalendar.bulkActuals(before,'2026-11',{...options,mode:'replace'}).next['2026-11-03'].minutes,30);
+ const days=PocoCalendar.bulkActuals(before,'2026-11',{...options,minutes:null,mode:'add'});assert.equal(days.next['2026-11-04'].minutes,null);assert.equal(days.next['2026-11-04'].earnedDay,true);
+ const timeOnly=PocoCalendar.bulkActuals({},'2026-11',{...options,countDay:false});assert.equal(timeOnly.next['2026-11-02'].earnedDay,false);assert.equal(timeOnly.next['2026-11-02'].minutes,30);
+});
+test('bulk entry validates all dates before committing and missing candidates exclude future days',()=>{
+ const before={'2026-11-03':{earnedDay:true,minutes:1400,cheerK:2}},snapshot=structuredClone(before);const options={from:1,to:4,weekdays:[0,1,2,3,4,5,6],minutes:60,countDay:true,mode:'add'};
+ assert.throws(()=>PocoCalendar.bulkActuals(before,'2026-11',options));assert.deepEqual(before,snapshot);
+ for(const bad of [{...options,to:31},{...options,from:5},{...options,weekdays:[]},{...options,minutes:1441},{...options,minutes:null,countDay:false}])assert.throws(()=>PocoCalendar.bulkActuals({},'2026-11',bad));
+ const entity={schedule:{'2026-11-01':'予定','2026-11-02':'予定','2026-11-04':'予定'},actuals:{'2026-11-02':{earnedDay:true,minutes:0,cheerK:0},'2026-11-03':{earnedDay:true,minutes:null,cheerK:null}}};
+ assert.deepEqual(PocoCalendar.missingActualDates(entity,'2026-11','2026-11-03'),['2026-11-01','2026-11-03']);
+ assert.deepEqual(PocoCalendar.missingActualDates(entity,'2026-11','2026-10-31'),[]);
+});

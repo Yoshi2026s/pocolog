@@ -335,6 +335,47 @@ $('goActualEntry').onclick=focusActualEditor;
 $('actualPreviousDay').onclick=()=>{movePlanDay(-1);focusActualEditor();};
 $('actualNextDay').onclick=()=>{movePlanDay(1);focusActualEditor();};
 $('actualToday').onclick=()=>{$('todayPlanDay').click();focusActualEditor();};
+let actualBulkAppliedSignature='';
+function actualBulkOptions(){
+ const ids=['actualBulkFrom','actualBulkTo','actualBulkHours','actualBulkMinutes'];
+ if(ids.some(id=>!$(id).validity.valid)||!$('actualBulkFrom').value||!$('actualBulkTo').value)throw Error('日付・時間を範囲内の数値で入力してください。');
+ const hours=$('actualBulkHours').value,minutes=$('actualBulkMinutes').value;
+ return {from:Number($('actualBulkFrom').value),to:Number($('actualBulkTo').value),weekdays:[...document.querySelectorAll('.actual-weekdays input:checked')].map(input=>Number(input.value)),minutes:hours===''&&minutes===''?null:Number(hours||0)*60+Number(minutes||0),countDay:$('actualBulkCount').checked,mode:document.querySelector('input[name=actualBulkMode]:checked').value};
+}
+function previewActualBulk(event){
+ if(currentEntity?.kind!=='liver')return;
+ if(event)actualBulkAppliedSignature='';$('applyActualBulk').disabled=true;
+ try{const options=actualBulkOptions(),signature=JSON.stringify(options),result=PocoCalendar.bulkActuals(entityDetails().actuals,currentEntity.month,options),total=PocoCalendar.actualTotals({actuals:result.next});
+  if(signature===actualBulkAppliedSignature){$('actualBulkPreview').textContent='反映済みです。再入力する場合は条件を変更してください。';return;}
+  $('actualBulkPreview').textContent=`更新 ${result.applied.length}日 ／ 記録済みのため保護 ${result.skipped.length}日。反映後：${total.days}日・${total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'時間未記録'}`;
+  $('applyActualBulk').disabled=!result.applied.length;
+ }catch(error){$('actualBulkPreview').textContent=error.message;}
+}
+function resetActualBulk(){
+ actualBulkAppliedSignature='';$('actualBulkPanel').open=false;
+ const day=Number(currentEntity.date.slice(8)),last=PocoCalendar.monthInfo(currentEntity.month).days;
+ for(const id of ['actualBulkFrom','actualBulkTo']){$(id).max=last;$(id).value=day;}
+ $('actualBulkHours').value='';$('actualBulkMinutes').value='';$('actualBulkCount').checked=true;
+ document.querySelectorAll('.actual-weekdays input').forEach(input=>input.checked=true);document.querySelector('input[name=actualBulkMode][value=missing]').checked=true;previewActualBulk();
+}
+for(const input of document.querySelectorAll('#actualBulkPanel input'))input.addEventListener('input',previewActualBulk);
+$('applyActualBulk').onclick=()=>{
+ if(currentEntity?.kind!=='liver')return;
+ try{const options=actualBulkOptions(),signature=JSON.stringify(options);if(signature===actualBulkAppliedSignature)return;
+  const result=PocoCalendar.bulkActuals(entityDetails().actuals,currentEntity.month,options);if(!result.applied.length)return;
+  applyActualAction(result.next,`${result.applied.length}日分を反映しました。エール・予定は変更していません。`);actualBulkAppliedSignature=signature;lastActualAction.bulk=true;updateActualTools();
+ }catch(error){$('actualBulkPreview').textContent=error.message;}
+};
+function currentMissingActualDates(){
+ const entity=entityDetails();if(currentEntity?.kind!=='liver'||!entity)return [];
+ const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ return PocoCalendar.missingActualDates(entity,currentEntity.month,today);
+}
+$('undoActualBulk').onclick=()=>$('undoActualAction').click();
+$('findMissingActual').onclick=()=>{
+ const missing=currentMissingActualDates();if(!missing.length)return;
+ selectEntityDay(missing.find(date=>date>currentEntity.date)||missing[0]);focusActualEditor();
+};
 function updateActualTools(){
  const entity=entityDetails();if(currentEntity?.kind!=='liver'||!entity)return;
  const dates=PocoCalendar.dates(currentEntity.month),index=dates.findIndex(item=>item.date===currentEntity.date),value=entity.actuals?.[currentEntity.date];
@@ -343,7 +384,8 @@ function updateActualTools(){
  $('copyPreviousActualTime').disabled=index<1||entity.actuals?.[dates[index-1].date]?.minutes==null;
  $('actualMinus15').disabled=!(value?.minutes>0);$('clearActualDay').disabled=!value;
  const canUndo=lastActualAction&&lastActualAction.row===entity&&lastActualAction.table===data&&JSON.stringify(entity.actuals||{})===JSON.stringify(lastActualAction.after);
- $('undoActualAction').hidden=!canUndo;
+ $('undoActualAction').hidden=!canUndo;$('undoActualBulk').hidden=!(canUndo&&lastActualAction.bulk);
+ const missing=currentMissingActualDates();$('actualMissingInfo').textContent=`今日までの未記録候補 ${missing.length}日（予定あり・未記録、または時間未入力）`;$('findMissingActual').disabled=!missing.length;previewActualBulk();
 }
 function applyActualAction(next,message){
  const entity=entityDetails();if(currentEntity?.kind!=='liver'||!entity)return;
@@ -370,7 +412,7 @@ $('clearActualDay').onclick=()=>{
 };
 $('undoActualAction').onclick=()=>{
  const entity=entityDetails(),action=lastActualAction;if(!action||action.row!==entity||action.table!==data||JSON.stringify(entity.actuals||{})!==JSON.stringify(action.after))return;
- entity.actuals=structuredClone(action.before);lastActualAction=null;loadActualDay(entity,currentEntity.date);renderEntityCalendar();stats();plannerSaved('直前の実績操作を元に戻しました。');
+ entity.actuals=structuredClone(action.before);actualBulkAppliedSignature='';lastActualAction=null;loadActualDay(entity,currentEntity.date);renderEntityCalendar();stats();plannerSaved('直前の実績操作を元に戻しました。');
 };
 function previewActualRange(event){
  if(currentEntity?.kind!=='liver')return;
@@ -437,7 +479,7 @@ function openEntityPlanner(target){
  currentEntity=target;$('actualEntryShortcut').hidden=target.kind!=='liver';$('actualHistory').open=false;$('liverActualSummary').hidden=target.kind!=='liver';$('liverActualEditor').hidden=target.kind!=='liver';const entity=entityDetails();$('entityMemo').value=entity?.memo||'';$('plannerStatus').textContent='';
  const japanDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  selectEntityDay(japanDate.startsWith(target.month+'-')?japanDate:target.month+'-01');
- document.querySelector('.entity-breakdown').open=false;
+ document.querySelector('.entity-breakdown').open=false;if(target.kind==='liver')resetActualBulk();
 }
 function plannerSaved(message=''){
  const stored=save();$('plannerStatus').textContent=stored?(message||'このブラウザに保存しました'):'保存できません。バックアップを保存してください。';
