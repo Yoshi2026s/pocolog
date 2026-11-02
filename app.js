@@ -327,7 +327,7 @@ const toolsMenu=document.querySelector('.table-tools');
 function positionToolsMenu(){
  if(!toolsMenu.open)return;const menu=toolsMenu.querySelector('.toolbar');const anchor=toolsMenu.querySelector('summary').getBoundingClientRect();
  const width=menu.getBoundingClientRect().width;const top=Math.max(8,Math.min(anchor.bottom+5,window.innerHeight-130));
- menu.style.left=Math.max(8,Math.min(anchor.right-width,window.innerWidth-width-8))+'px';menu.style.top=top+'px';menu.style.maxHeight=Math.max(80,window.innerHeight-top-8)+'px';
+ menu.style.left=Math.max(8,Math.min(anchor.left,window.innerWidth-width-8))+'px';menu.style.top=top+'px';menu.style.maxHeight=Math.max(80,window.innerHeight-top-8)+'px';
 }
 toolsMenu.addEventListener('toggle',positionToolsMenu);window.addEventListener('resize',positionToolsMenu);window.addEventListener('scroll',event=>{if(!toolsMenu.querySelector('.toolbar').contains(event.target))positionToolsMenu();},true);
 $('addRow').onclick=()=>{data.rows.push({name:'新しいライバー',memo:'',values:data.columns.map(()=>'')});save();render();};
