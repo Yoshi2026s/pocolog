@@ -171,7 +171,7 @@ function sortLivers(field){
  const direction=rowSort.field===field&&rowSort.month===book.currentMonth?-rowSort.direction:1;
  rowSort={field,direction,month:book.currentMonth};const ordered=PocoRows.sortRows(data.rows,field,direction,book.currentMonth);
  const changed=ordered.some((row,index)=>row!==data.rows[index]);data.rows=ordered;if(changed)save();render();
- $('orderStatus').textContent=`${field==='closingTime'?'締め時間':'解禁日'}の${direction===1?'早い':'遅い'}順に並び替えました。未定・空欄は末尾です。`;
+ $('orderStatus').textContent=`${field==='closingTime'?'締め':'解禁日'}の${direction===1?'早い':'遅い'}順に並び替えました。未定・空欄は末尾です。`;
  document.querySelector(`[data-sort-field="${field}"]`)?.focus({preventScroll:true});
 }
 function sortHeader(head,field,label,cls){
@@ -384,25 +384,46 @@ $('applyImagePlans').onclick=()=>{
 $('coinDialog').addEventListener('close',()=>{if(!$('coinDialog').open)resetImageImport();});
 $('coinDialogClose').onclick=()=>$('coinDialog').close();
 let scheduleRow=null;
+function commitSchedule(field,value){
+ if(!scheduleRow||!data.rows.includes(scheduleRow))return;
+ scheduleRow[field]=value;rowSort={field:null,direction:1,month:book.currentMonth};save();render();
+}
+function renderReleaseCalendar(row){
+ const month=book.currentMonth,info=PocoCalendar.monthInfo(month),calendar=$('releaseCalendar');
+ const day=PocoRows.releaseKey(row.releaseDate,month);
+ $('releaseCalendarMonth').textContent=`${info.year}年${info.number}月`;
+ $('releaseCurrent').textContent=`現在：${PocoRows.formatRelease(row.releaseDate,month)||'空欄'}`;
+ $('releaseTentative').checked=/[(（]仮[)）]\s*$/.test(row.releaseDate||'');
+ calendar.replaceChildren();
+ for(let i=0;i<info.weekday;i++){const empty=document.createElement('span');empty.setAttribute('aria-hidden','true');calendar.append(empty);}
+ const todayDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ for(const date of PocoCalendar.dates(month)){
+  const button=document.createElement('button');button.type='button';button.className='calendar-day';const number=document.createElement('span');number.className='day-number';number.textContent=date.day;button.append(number);
+  button.dataset.date=date.date;button.classList.toggle('is-sunday',date.weekday===0);button.classList.toggle('is-saturday',date.weekday===6);
+  button.setAttribute('aria-label',`${info.year}年${info.number}月${date.day}日を解禁日に設定`);button.setAttribute('aria-pressed',String(date.day===day));
+  if(date.date===todayDate)button.setAttribute('aria-current','date');
+  button.onclick=()=>commitSchedule('releaseDate',`${date.day}日${$('releaseTentative').checked?'(仮)':''}`);calendar.append(button);
+ }
+}
 function showSchedule(row,field){
- scheduleRow=row;$('scheduleTitle').textContent=`${row.name}の日程`;
- $('closingTimeInput').value=row.closingTime||'';$('releaseDateInput').value=PocoRows.formatRelease(row.releaseDate,book.currentMonth);
+ scheduleRow=row;const isRelease=field==='releaseDate';$('scheduleTitle').textContent=`${row.name}の${isRelease?'解禁日':'締め'}`;
+ $('closingEditor').hidden=isRelease;$('releaseEditor').hidden=!isRelease;
+ const closing=row.closingTime||'';$('closingTimeInput').value=['','0時','22時','13時'].includes(closing)?closing:'';
+ $('closingCurrent').textContent=`現在：${closing||'空欄'}`;
+ if(isRelease)renderReleaseCalendar(row);
  updateOverlayViewport();$('scheduleDialog').showModal();$('scheduleDialog').scrollTop=0;
- $(field==='releaseDate'?'releaseDateInput':'closingTimeInput').focus({preventScroll:true});
+ const target=isRelease?$('releaseCalendar').querySelector('[aria-pressed=true]')||$('releaseCalendar').querySelector('button'):$('closingTimeInput');
+ target?.focus({preventScroll:true});
 }
 function scheduleField(row,field,label){
  const button=document.createElement('button');button.type='button';button.className='schedule-field';button.setAttribute('aria-label',`${row.name}の${label}`);button.title=field==='releaseDate'?PocoRows.formatRelease(row[field],book.currentMonth):row[field]||'';
- const value=button.title;
- button.textContent=value;
- button.onclick=()=>showSchedule(row,field);return button;
+ button.textContent=button.title;button.onclick=()=>showSchedule(row,field);return button;
 }
 $('scheduleClose').onclick=()=>$('scheduleDialog').close();
 $('scheduleDialog').addEventListener('close',()=>{scheduleRow=null;});
-$('scheduleForm').onsubmit=event=>{
- event.preventDefault();if(!scheduleRow||!data.rows.includes(scheduleRow))return;
- document.activeElement?.blur();
- scheduleRow.closingTime=$('closingTimeInput').value.trim();scheduleRow.releaseDate=PocoRows.formatRelease($('releaseDateInput').value,book.currentMonth);rowSort={field:null,direction:1,month:book.currentMonth};save();render();
-};
+$('closingTimeInput').onchange=()=>commitSchedule('closingTime',$('closingTimeInput').value);
+$('releaseUndecided').onclick=()=>commitSchedule('releaseDate','未定');
+$('releaseClear').onclick=()=>commitSchedule('releaseDate','');
 function render(){
  if(!canUndoCheer())dismissCheerUndo();
  if($('findLiverDialog').open)$('findLiverDialog').close();
@@ -413,7 +434,7 @@ function render(){
  if($('scheduleDialog').open)$('scheduleDialog').close();
  const table=$('grid');table.replaceChildren();const head=table.createTHead().insertRow();
  cell(head,'th').textContent='ライバー名';
- sortHeader(head,'closingTime','締め時間','closing-col');sortHeader(head,'releaseDate','解禁日','release-col');
+ sortHeader(head,'closingTime','締め','closing-col');sortHeader(head,'releaseDate','解禁日','release-col');
  data.columns.forEach((c,j)=>{
   const th=cell(head,'th');th.append(nameControls(c,'アカウント',()=>showCoinDialog('account',j)));
  });
@@ -421,7 +442,7 @@ function render(){
  const body=table.createTBody();
  data.rows.forEach((r,i)=>{
   const tr=body.insertRow();const nameCell=cell(tr,'td','name');nameCell.append(nameControls(r.name,'ライバー',()=>showCoinDialog('liver',i)));attachRowDrag(nameCell.querySelector('button'),r,tr);
-  cell(tr,'td','closing-col').append(scheduleField(r,'closingTime','締め時間'));cell(tr,'td','release-col').append(scheduleField(r,'releaseDate','解禁日'));
+  cell(tr,'td','closing-col').append(scheduleField(r,'closingTime','締め'));cell(tr,'td','release-col').append(scheduleField(r,'releaseDate','解禁日'));
   r.values.forEach((v,j)=>{
    const td=cell(tr);td.append(cheerSelect(v,`${r.name}・${data.columns[j]}`,v=>changeCheer(r,j,v)));
   });
@@ -511,7 +532,7 @@ $('refresh').onclick=()=>{try{localStorage.setItem(KEY,JSON.stringify(book));loc
 function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('download').onclick=()=>download(JSON.stringify(book,null,2),'application/json','pocolog-backup.json');
 $('upload').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>10000000)throw Error();const next=JSON.parse(await f.text());if(!validBook(next)&&!valid(next,book.currentMonth))throw Error();if(confirm('全月の記録をバックアップの内容で置き換えますか？')){book=validBook(next)?next:{version:2,currentMonth:book.currentMonth,months:{[book.currentMonth]:next}};addMoeAccount();PocoRows.addExtraAccounts(book);addPhotoLivers();rowSort={field:null,direction:1,month:book.currentMonth};data=book.months[book.currentMonth];$('month').value=book.currentMonth;save();render();}}catch{alert('読み込めませんでした。ポコログのJSONバックアップを選択してください。');}e.target.value='';};
-$('csv').onclick=()=>{const quote=s=>'"'+String(s).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';const rows=[['ライバー名','締め時間','解禁日',...data.columns,'エール合計（K）','必要コイン（換算済み分）','未算定セル数','メモ'],...data.rows.map(r=>{const total=measure(r.values);return [r.name,r.closingTime||'',PocoRows.formatRelease(r.releaseDate,book.currentMonth),...r.values,total.number,total.coins,total.unknown,r.memo];})];download('\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog.csv');};
+$('csv').onclick=()=>{const quote=s=>'"'+String(s).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';const rows=[['ライバー名','締め','解禁日',...data.columns,'エール合計（K）','必要コイン（換算済み分）','未算定セル数','メモ'],...data.rows.map(r=>{const total=measure(r.values);return [r.name,r.closingTime||'',PocoRows.formatRelease(r.releaseDate,book.currentMonth),...r.values,total.number,total.coins,total.unknown,r.memo];})];download('\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog.csv');};
 const reference=$('coinReference');const referenceHead=reference.createTHead().insertRow();
 cell(referenceHead,'th').textContent='エール（K）';cell(referenceHead,'th').textContent='必要コイン（条件1）';
 const referenceBody=reference.createTBody();PocoCoins.tiers.forEach(([level,coins])=>{const row=referenceBody.insertRow();cell(row).textContent=fmt(level);cell(row).textContent=fmt(coins);});
