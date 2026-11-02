@@ -161,3 +161,25 @@ dialog .dialog-header{background:var(--surface);border-bottom:1px solid var(--li
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){.view-controls>summary{font-size:11px;line-height:24px;max-width:140px}#tablePanel.account-focused #grid tr>:first-child{width:108px;min-width:108px;max-width:108px}#tablePanel.account-focused #grid th button.name-trigger{width:100%;display:block;font-size:14px}.account-view-choices{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 #tablePanel.account-focused #grid .extra-col{display:none}#tablePanel.account-focused #grid .closing-col,#tablePanel.account-focused #grid .release-col{width:30px;min-width:30px;max-width:30px}#tablePanel.account-focused #grid button.schedule-field{white-space:normal;overflow-wrap:anywhere}
+
+/* Keep the compact overview, but give primary phone controls usable touch targets. */
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){
+ .month-label input{min-height:48px}
+ .shared-panel>button,.month-view-switch button,.table-bar .primary-tools button{min-height:48px;min-width:48px;font-size:12px}
+ .shared-panel .table-tools>summary,.color-controls>summary,.summary-section>summary{display:flex;align-items:center;min-height:48px;font-size:12px}
+ .table-bar .primary-tools{flex-wrap:wrap;max-width:100%}
+ .table-bar .primary-tools button{padding:6px 8px}
+ .color-panel button,.table-tools .toolbar button,.table-tools .toolbar .file{min-height:48px;font-size:13px}
+ .table-tools .toolbar .file{display:flex;align-items:center}
+ .cheer-picker [role=option]{min-height:48px}
+ dialog button,dialog input:not([type=checkbox]):not([type=radio]),dialog select,dialog textarea{min-height:48px}
+ dialog summary{display:flex;align-items:center;min-height:48px}
+ #pairNavigation button{min-height:48px}
+ dialog .calendar-day{min-height:48px}
+ .actual-earned-day,.actual-bulk-modes label{min-height:48px}
+ #tablePanel.account-focused #grid .closing-col,#tablePanel.account-focused #grid .release-col{width:48px;min-width:48px;max-width:48px}
+ #tablePanel.account-focused #grid button.cheer-field,#tablePanel.account-focused #grid button.name-trigger,#tablePanel.account-focused #grid button.schedule-field,
+ .table-panel.roomy-view:not(.table-detail) #grid button.cheer-field,.table-panel.roomy-view:not(.table-detail) #grid button.name-trigger,.table-panel.roomy-view:not(.table-detail) #grid button.schedule-field{min-height:48px}
+ #tablePanel.account-focused #grid th button.name-trigger{margin:0;padding:4px}
+ .table-panel.roomy-view:not(.table-detail):not(.account-focused) #grid{min-width:calc(180px + var(--account-count,15)*48px)}
+}
