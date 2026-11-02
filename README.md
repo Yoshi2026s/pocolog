@@ -3,16 +3,19 @@
 
 ## 起動
 
-Node.js 24 と Python 3 を使用します。
+Node.js 24 と npm を使用します（Python は不要です）。
 
 ```sh
-cd /workspace/pocolog
 npm ci
-npm run build
-python3 -m http.server 8000 --bind 0.0.0.0 --directory dist
+npm test
+npm run dev
 ```
 
-ブラウザでHTTPサーバーにアクセスして利用します。
+ブラウザで http://127.0.0.1:8000 を開きます。停止は Ctrl+C、編集後は再起動してビルドし直します。`PORT` 環境変数でポートを変更できます。サーバーはこのPCからのみアクセスできます。
+
+今回のWindows環境ではnpmを `.local-tools/npm/` に配置しています。npmがPATHにない場合は、上記の `npm` を `node .local-tools/npm/bin/npm-cli.js` に置き換えます（例：`node .local-tools/npm/bin/npm-cli.js run dev`）。このフォルダーはGit管理外です。別のPCではNode.js 24に付属するnpmを使用してください。公開と同じファイルハッシュで比較するため、このチェックアウトのGit設定は `core.autocrlf=false` としています。
+
+`app.js`・`index.html`・`design.css` などの編集元を変更し、`dist/` は `npm run build` で生成します。公開と同じ確認は `npm test` と `npm run build` です。ローカルでもFirebaseの共有先は本番設定なので、画面で「共有先に保存」を押すと本番データに反映されます。動作確認には別のブラウザープロファイルを使い、共有保存を行わないでください。
 
 ## 機能
 
