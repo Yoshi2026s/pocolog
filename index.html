@@ -33,6 +33,30 @@
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){body{padding-top:calc(10px + env(safe-area-inset-top,0px));}header{background:#fff;opacity:1;backdrop-filter:none;-webkit-backdrop-filter:none}.table-panel:not(.table-detail) #grid th.closing-col .sort-label{writing-mode:vertical-rl;text-orientation:upright;font-size:10px;min-height:44px;padding:2px}.table-panel:not(.table-detail) #grid th.release-col .sort-label{font-size:10px;min-height:44px;padding:2px}}
 .table-bar,.primary-tools,.toolbar,.name-actions{justify-content:flex-start;text-align:left}
 .image-import{margin-top:12px;border:1px solid #dce6df;border-radius:8px;padding:10px}.image-import>summary,.ocr-text-panel>summary{cursor:pointer;font-size:13px;color:#315846}.image-import-actions{display:flex;gap:8px;align-items:center}.image-import .file{display:inline-block}.image-import img{display:block;max-width:100%;max-height:200px;object-fit:contain;margin:10px auto;border-radius:6px}.image-import img[hidden]{display:none}#imageImportStatus{font-size:12px;line-height:1.6;white-space:pre-line;overflow-wrap:anywhere}#imageImportEntries{display:grid;gap:10px;margin:10px 0}.import-candidate{padding:8px;border:1px solid #dce6df;border-radius:7px}.import-candidate-header{display:flex;align-items:center;gap:8px;margin-bottom:5px}.import-candidate-header label{display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap}.import-candidate input[type=checkbox]{width:18px;height:18px}.import-candidate input[type=date]{min-width:0;flex:1;width:140px;border:1px solid #cedcd2;border-radius:6px;padding:5px;font:inherit;font-size:16px;color:inherit;background:#fff}.import-candidate small{display:block;font-size:10px;color:#72817a;margin-top:4px}.import-mode-label{display:block;margin:12px 0;font-size:12px}.import-mode-label select{display:block;margin-top:5px;max-width:100%;font-size:16px}#applyImagePlans{margin-bottom:6px}.ocr-text-panel{margin-top:12px}.ocr-text-panel textarea{margin:8px 0}
+/* Keep account columns legible while fitting the full table on small screens. */
+.table-panel:not(.table-detail) #grid{table-layout:fixed;font-size:11px;max-width:640px}
+.table-panel:not(.table-detail) #grid .extra-col{display:none}
+.table-panel:not(.table-detail) #grid th,.table-panel:not(.table-detail) #grid td{min-width:0}
+.table-panel:not(.table-detail) #grid tr>:first-child{width:76px;min-width:76px;max-width:76px}
+.table-panel:not(.table-detail) #grid .closing-col{width:30px;min-width:30px;max-width:30px}
+.table-panel:not(.table-detail) #grid .release-col{width:30px;min-width:30px;max-width:30px}
+.table-panel:not(.table-detail) #grid th .sort-label{writing-mode:vertical-rl;text-orientation:upright;font-size:10px;padding:1px;min-height:44px}
+.table-panel:not(.table-detail) #grid th button.name-trigger{writing-mode:vertical-rl;text-orientation:upright;white-space:nowrap;font-size:10px;padding:1px 0;margin:0;line-height:1.1}
+.table-panel:not(.table-detail) #grid td.name button.name-trigger{font-size:11px;padding:3px 1px}
+.table-panel:not(.table-detail) #grid button.cheer-field{min-width:0;padding:3px 0;font-size:11px}
+.table-panel:not(.table-detail) #grid button.schedule-field{font-size:10px;padding:1px;white-space:normal;overflow-wrap:anywhere;line-height:12px}
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){
+ .table-panel{padding:5px}
+ .table-panel:not(.table-detail) #grid{min-width:286px}
+ .table-panel:not(.table-detail) #grid tr>:first-child{width:56px;min-width:56px;max-width:56px;font-size:9px}
+ .table-panel:not(.table-detail) #grid td.name button.name-trigger{font-size:9px;line-height:18px}
+ .table-panel:not(.table-detail) #grid .closing-col{width:24px;min-width:24px;max-width:24px}
+ .table-panel:not(.table-detail) #grid .release-col{width:26px;min-width:26px;max-width:26px}
+ .table-panel:not(.table-detail) #grid th.release-col .sort-label{writing-mode:vertical-rl;font-size:9px;padding:1px}
+ .table-panel:not(.table-detail) #grid th button.name-trigger{font-size:9px}
+ .table-panel:not(.table-detail) #grid button.schedule-field{font-size:9px}
+ .table-panel:not(.table-detail) #grid button.cheer-field{font-size:10px}
+}
 </style>
 <header><h1>◉ ポコログ</h1><small>応援の記録を、わかりやすく。</small></header>
 <main><div class="page-title"><h2>ポコログ</h2><label class="month-label">記録月 <input type="month" id="month" aria-label="記録する月"></label></div><p class="intro">ライバーごとに、自分の各アカウントのエール数を記録しましょう。</p>

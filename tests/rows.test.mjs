@@ -39,3 +39,14 @@ test('moving a row in either direction keeps the whole record intact', () => {
   assert.deepEqual(moveRow(rows,2,0).map(r=>r.name),['C','A','B']);
   assert.equal(moveRow(rows,0,2)[2],rows[0]); assert.deepEqual(rows.map(r=>r.name),['A','B','C']);
 });
+
+test('old tables gain missing accounts once without changing values, notes or schedules',()=>{
+ const table={columns:['ヨシ','その他'],rows:[{name:'A',memo:'記録',values:['10','48'],schedule:{'2026-11-03':'配信'}}],accountDetails:[{memo:'ヨシメモ',schedule:{}},{memo:'その他メモ',schedule:{}}]};
+ const book={months:{'2026-11':table}};const original=structuredClone(table);
+ assert.equal(PocoRows.addExtraAccounts(book),true);
+ assert.deepEqual(table.columns,['ヨシ','海斗','レオ','その他']);assert.deepEqual(table.rows[0].values,['10','','','48']);
+ assert.deepEqual(table.accountDetails[3],original.accountDetails[1]);assert.deepEqual(table.rows[0].schedule,original.rows[0].schedule);assert.equal(table.rows[0].memo,'記録');
+ assert.equal(PocoRows.addExtraAccounts(book),false);table.columns.splice(1,1);table.rows[0].values.splice(1,1);table.accountDetails.splice(1,1);
+ assert.equal(PocoRows.addExtraAccounts(book),false);assert.equal(table.columns.includes('海斗'),false);
+ const partial={months:{'2026-11':{columns:['ヨシ','海斗'],rows:[{values:['1','2']}]}}};PocoRows.addExtraAccounts(partial);assert.deepEqual(partial.months['2026-11'].rows[0].values,['1','2','']);
+});

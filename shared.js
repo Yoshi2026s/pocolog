@@ -46,9 +46,10 @@ function apply(record) {
   const next = JSON.parse(record.payload);
   if (!api.validBook(next)) throw Error('共有データの形式を確認できません。');
   backupLocal();
-  api.setBook(next);
-  retainSyncState(record.revision, true);
-  message('共有先と同期済み');
+  const migrated=api.setBook(next);
+  if(migrated){state.edit();localStorage.setItem(pendingKey,'1');}
+  retainSyncState(record.revision, !migrated);
+  message(migrated?'不足するアカウントを追加しました。「共有先に保存」で反映できます。':'共有先と同期済み');
 }
 function read(snapshot) {
   if (!snapshot.exists()) return null;

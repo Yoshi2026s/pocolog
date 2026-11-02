@@ -22,6 +22,24 @@
     const day=releaseKey(value,month);
     return day===null?String(value??'').trim():`${day}日${/[(（]仮[)）]\s*$/.test(value)?'(仮)':''}`;
   }
+  // Upgrade saved tables once, keeping values and account metadata aligned.
+  function addExtraAccounts(book){
+    if(book.extraAccountsVersion===1)return false;
+    for(const table of Object.values(book.months)){
+      let anchor=table.columns.indexOf('ヨシ');
+      if(anchor<0)continue;
+      for(const name of ['海斗','レオ']){
+        const existing=table.columns.indexOf(name);
+        if(existing>=0){anchor=existing;continue;}
+        const index=++anchor;
+        table.columns.splice(index,0,name);
+        table.rows.forEach(row=>row.values.splice(index,0,''));
+        if(table.accountDetails)table.accountDetails.splice(index,0,{memo:'',schedule:{}});
+      }
+    }
+    book.extraAccountsVersion=1;
+    return true;
+  }
   function sortRows(rows, field, direction, month) {
     const key = field === 'closingTime' ? row => closingKey(row.closingTime) : row => releaseKey(row.releaseDate, month);
     return rows.map((row, index) => ({ row, index, key: key(row) })).sort((a, b) => {
@@ -34,5 +52,5 @@
     if (![from, to].every(index => Number.isInteger(index) && index >= 0 && index < rows.length)) return result;
     const [row] = result.splice(from, 1); result.splice(to, 0, row); return result;
   }
-  globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, formatRelease, sortRows, moveRow });
+  globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, formatRelease, addExtraAccounts, sortRows, moveRow });
 })();
