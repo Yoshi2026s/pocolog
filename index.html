@@ -150,6 +150,11 @@ button:focus-visible,summary:focus-visible,.file:focus-within{outline:2px solid 
 @media (min-width:701px) and (min-height:501px), (min-width:1001px){
  .table-panel:not(.table-detail) #grid{min-width:max(920px,calc(264px + var(--account-count,15)*40px))}
 }
+/* Today's releases remain distinct from the green input/selection feedback. */
+#grid tbody tr.release-today>td{background:#fff3cd}
+#grid tbody tr.release-today>td:first-child{box-shadow:inset 3px 0 #c46b00}
+#grid tbody tr.release-today td.name button.name-trigger{color:#7a4100;font-weight:700}
+#grid tbody tr.release-today .release-col button.schedule-field{background:#ffe09a;color:#713a00;font-weight:700}
 </style>
 <header><h1>◉ ポコログ</h1><small>応援の記録を、わかりやすく。</small></header>
 <main><div class="page-title"><h2>ポコログ</h2><label class="month-label">記録月 <input type="month" id="month" aria-label="記録する月"></label></div><p class="intro">ライバーごとに、自分の各アカウントのエール数を記録しましょう。</p>

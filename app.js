@@ -32,11 +32,27 @@ addPhotoLivers();
 data=book.months[book.currentMonth];
 $('month').value=book.currentMonth;
 const clockFormat=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+let releaseTodayDate='';
+function highlightReleaseToday(date){
+ const rows=$('grid').tBodies[0]?.rows;if(!rows)return;
+ const currentMonth=book.currentMonth===date.slice(0,7),day=Number(date.slice(8));
+ data.rows.forEach((row,index)=>{
+  const tr=rows[index];if(!tr)return;
+  const isToday=currentMonth&&PocoRows.releaseKey(row.releaseDate,book.currentMonth)===day;
+  tr.classList.toggle('release-today',isToday);
+  const button=tr.querySelector('.release-col button');if(!button)return;
+  const value=PocoRows.formatRelease(row.releaseDate,book.currentMonth);
+  button.title=value+(isToday?'（本日解禁）':'');
+  if(isToday)button.setAttribute('aria-description','本日が解禁日です（日本時間）');else button.removeAttribute('aria-description');
+ });
+}
 function updateCurrentDateTime(){
  const now=new Date();const parts=Object.fromEntries(clockFormat.formatToParts(now).map(part=>[part.type,part.value]));
  $('currentDateTime').dateTime=now.toISOString();
  $('currentDate').textContent=`${parts.year}/${parts.month}/${parts.day}`;
  $('currentTime').textContent=`${parts.hour}:${parts.minute}:${parts.second}`;
+ const date=`${parts.year}-${parts.month}-${parts.day}`;
+ if(date!==releaseTodayDate){releaseTodayDate=date;highlightReleaseToday(date);}
 }
 updateCurrentDateTime();setInterval(updateCurrentDateTime,1000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateCurrentDateTime();});
@@ -426,6 +442,7 @@ function render(){
   const coins=cell(tr,'td','total coin-total extra-col');coins.dataset.coinRow=i;
   cell(tr,'td','memo extra-col').append(input(r.memo,`${r.name}のメモ`,v=>r.memo=v));
  });
+ highlightReleaseToday(releaseTodayDate);
  stats();
  if(monthChanged){const position=monthViewportPositions.get(book.currentMonth)||{top:0,left:0};wrap.scrollTop=position.top;wrap.scrollLeft=position.left;}
  requestAnimationFrame(fitTableViewport);
