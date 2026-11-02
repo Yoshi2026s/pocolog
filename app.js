@@ -312,7 +312,7 @@ $('todayPlanDay').onclick=()=>{
  if(date.startsWith(currentEntity.month+'-'))selectEntityDay(date);
 };
 function openEntityPlanner(target){
- currentEntity=target;const entity=entityDetails();$('entityMemo').value=entity?.memo||'';$('plannerStatus').textContent='';resetImageImport(target);
+ currentEntity=target;const entity=entityDetails();$('entityMemo').value=entity?.memo||'';$('plannerStatus').textContent='';
  const japanDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  selectEntityDay(japanDate.startsWith(target.month+'-')?japanDate:target.month+'-01');
  document.querySelector('.entity-breakdown').open=false;
@@ -331,57 +331,6 @@ $('daySchedule').oninput=()=>{
  const entity=entityDetails(true);if(!entity||!currentEntity.date)return;
  PocoCalendar.setDay(entity,currentEntity.date,$('daySchedule').value);renderEntityCalendar();plannerSaved();
 };
-let imageImportRun=0,imageImportAbort=null,imagePreviewUrl=null,imageCandidateRows=[];
-function resetImageImport(target=null,keepOpen=false){
- imageImportRun++;imageImportAbort?.abort();imageImportAbort=null;
- if(imagePreviewUrl)URL.revokeObjectURL(imagePreviewUrl);imagePreviewUrl=null;
- $('scheduleImage').value='';$('scheduleImage').disabled=false;$('cancelImageRead').hidden=true;
- $('scheduleImagePreview').hidden=true;$('scheduleImagePreview').removeAttribute('src');$('imageOcrText').value='';
- $('imageImportEntries').replaceChildren();imageCandidateRows=[];$('imageImportReview').hidden=true;$('imageImportStatus').textContent='';$('imageImportMode').value='append';
- if(!keepOpen)$('imageImportPanel').open=false;
- const name=target?(target.kind==='account'?target.table.columns[target.index]:target.row.name):'';
- $('imageImportTarget').textContent=target?`${name} ／ ${target.month} のカレンダーへ取り込みます。`:'';
-}
-function addImageCandidate(entry={}){
- const index=imageCandidateRows.length+1,container=document.createElement('div');container.className='import-candidate';
- const header=document.createElement('div');header.className='import-candidate-header';
- const label=document.createElement('label'),include=document.createElement('input');include.type='checkbox';include.checked=true;include.setAttribute('aria-label',`候補${index}を反映`);label.append(include,document.createTextNode(String(index)));
- const date=document.createElement('input');date.type='date';date.min=currentEntity.month+'-01';date.max=PocoCalendar.dates(currentEntity.month).at(-1).date;date.value=entry.date||currentEntity.date||date.min;date.setAttribute('aria-label',`候補${index}の日付`);
- const text=document.createElement('textarea');text.rows=2;text.value=entry.text||'';text.setAttribute('aria-label',`候補${index}の予定`);
- const source=document.createElement('small');source.textContent=entry.source||'手入力';header.append(label,date);container.append(header,text,source);$('imageImportEntries').append(container);
- imageCandidateRows.push({include,date,text});$('imageImportReview').hidden=false;
-}
-function showImageCandidates(result){
- $('imageImportEntries').replaceChildren();imageCandidateRows=[];result.entries.forEach(addImageCandidate);$('imageImportReview').hidden=false;
- $('imageImportStatus').textContent=(result.entries.length?`${result.entries.length}日分の候補を読み取りました。内容を確認してください。`:'予定の日付を読み取れませんでした。下の読み取り文字を修正して「候補を更新」するか、予定を追加できます。')+(result.warnings.length?'\n'+result.warnings.join('\n'):'');
-}
-$('scheduleImage').onchange=async event=>{
- const file=event.target.files?.[0],target=currentEntity;if(!file||!target||!target.isCurrent()||!$('coinDialog').open)return;
- resetImageImport(target,true);const run=imageImportRun;
- if(file.size>20*1024*1024||file.type&&!/^image\/(png|jpeg|webp|gif|bmp|avif|heic|heif)$/i.test(file.type)){$('imageImportStatus').textContent='20MB以下のJPEG・PNGなどの画像を選択してください。';return;}
- const controller=new AbortController();imageImportAbort=controller;$('scheduleImage').disabled=true;$('cancelImageRead').hidden=false;
- imagePreviewUrl=URL.createObjectURL(file);$('scheduleImagePreview').src=imagePreviewUrl;$('scheduleImagePreview').hidden=false;
- $('imageImportStatus').textContent='画像を読み取っています。初回は準備に少し時間がかかります。';
- try{
-  const result=await PocoOcr.readImage(file,{signal:controller.signal,month:target.month,onProgress:event=>{if(run!==imageImportRun)return;$('imageImportStatus').textContent=event.status==='recognizing text'?`画像を読み取り中… ${Math.round(event.progress*100)}%`:'読み取りの準備中…（初回は少し時間がかかります）';}});
-  if(run!==imageImportRun||currentEntity!==target||!target.isCurrent()||!$('coinDialog').open)return;
-  $('imageOcrText').value=result.text||'';showImageCandidates(PocoImageImport.extract(result,target.month));
- }catch(error){if(run===imageImportRun)$('imageImportStatus').textContent=error.name==='AbortError'?'読み取りを中止しました。':`読み取れませんでした。${/[ぁ-んァ-ヶ一-龯]/.test(error.message||'')?error.message:'通信状態と画像を確認して、もう一度お試しください。'}`;}
- finally{if(run===imageImportRun){$('scheduleImage').disabled=false;$('cancelImageRead').hidden=true;imageImportAbort=null;}}
-};
-$('cancelImageRead').onclick=()=>{imageImportRun++;imageImportAbort?.abort();imageImportAbort=null;$('scheduleImage').disabled=false;$('cancelImageRead').hidden=true;$('imageImportStatus').textContent='読み取りを中止しました。';};
-$('reparseImageText').onclick=()=>{if(currentEntity&&currentEntity.isCurrent())showImageCandidates(PocoImageImport.parseText($('imageOcrText').value,currentEntity.month));};
-$('addImageCandidate').onclick=()=>{if(currentEntity&&currentEntity.isCurrent())addImageCandidate();};
-$('applyImagePlans').onclick=()=>{
- const existing=entityDetails();if(!existing||!$('coinDialog').open)return;
- try{
-  const entries=imageCandidateRows.filter(row=>row.include.checked).map(row=>({date:row.date.value,text:row.text.value}));
-  const next=PocoImageImport.merge(existing.schedule||{},entries,currentEntity.month,$('imageImportMode').value);
-  const target=entityDetails(true);if(!target)return;target.schedule=next;
-  const first=entries.map(row=>row.date).sort()[0];selectEntityDay(first);plannerSaved(`画像から${new Set(entries.map(row=>row.date)).size}日分の予定を反映しました。共有する場合は「共有先に保存」を押してください。`);$('imageImportPanel').open=false;
- }catch(error){$('imageImportStatus').textContent=error.message;}
-};
-$('coinDialog').addEventListener('close',()=>{if(!$('coinDialog').open)resetImageImport();});
 $('coinDialogClose').onclick=()=>$('coinDialog').close();
 let scheduleRow=null;
 function commitSchedule(field,value){
