@@ -34,3 +34,23 @@ test('clearing a day removes only that entry and JSON backups retain schedules',
   const restored = JSON.parse(JSON.stringify(row));
   assert.deepEqual(restored, {memo:'既存メモ',schedule:{'2026-11-02':'夜'}});
 });
+
+test('daily earned records validate dates, bounds and legacy missing fields',()=>{
+ const {validActuals}=PocoCalendar;
+ const value={earnedDay:true,minutes:125,cheerK:10.5};
+ assert.equal(validActuals(undefined,'2026-11'),true);
+ assert.equal(validActuals({'2026-11-03':value},'2026-11'),true);
+ for(const date of ['2026-11-31','2026-12-03','2026-11-3'])assert.equal(validActuals({[date]:value},'2026-11'),false);
+ for(const bad of [{...value,minutes:1441},{...value,minutes:-1},{...value,minutes:1.5},{...value,cheerK:-1},{...value,cheerK:Infinity},{...value,earnedDay:1},{...value,extra:1}])assert.equal(validActuals({'2026-11-03':bad},'2026-11'),false);
+});
+test('earned days are counted once and edits replace values, distinguishing blanks and zero',()=>{
+ const {setActual,actualTotals}=PocoCalendar;const row={memo:'保持',schedule:{'2026-11-03':'予定'}};
+ setActual(row,'2026-11-03',{earnedDay:true,minutes:90,cheerK:10},'2026-11');
+ setActual(row,'2026-11-03',{earnedDay:true,minutes:125,cheerK:12},'2026-11');
+ setActual(row,'2026-11-04',{earnedDay:true,minutes:null,cheerK:null},'2026-11');
+ setActual(row,'2026-11-05',{earnedDay:false,minutes:0,cheerK:0},'2026-11');
+ assert.deepEqual(actualTotals(row),{days:2,minutes:125,cheerK:12,records:3,timeRecords:2,cheerRecords:2});
+ setActual(row,'2026-11-03',{earnedDay:false,minutes:null,cheerK:null},'2026-11');
+ assert.equal(actualTotals(row).days,1);assert.equal(actualTotals(row).minutes,0);assert.equal(row.memo,'保持');assert.equal(row.schedule['2026-11-03'],'予定');
+ assert.deepEqual(JSON.parse(JSON.stringify(row)).actuals,row.actuals);
+});

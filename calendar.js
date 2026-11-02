@@ -35,5 +35,23 @@
     if (text === '') delete entity.schedule[date];
     else entity.schedule[date] = text;
   }
-  globalThis.PocoCalendar = Object.freeze({ monthInfo, dates, validSchedule, validAccounts, accountDetails, setDay });
+  function validActuals(actuals, month){
+    if(actuals===undefined)return true;
+    if(!actuals||typeof actuals!=='object'||Array.isArray(actuals)||Object.keys(actuals).length>31)return false;
+    const allowed=new Set(dates(month).map(item=>item.date));
+    return Object.entries(actuals).every(([date,value])=>allowed.has(date)&&value&&typeof value==='object'&&!Array.isArray(value)
+      &&Object.keys(value).length===3&&typeof value.earnedDay==='boolean'
+      &&(value.minutes===null||Number.isInteger(value.minutes)&&value.minutes>=0&&value.minutes<=1440)
+      &&(value.cheerK===null||typeof value.cheerK==='number'&&Number.isFinite(value.cheerK)&&value.cheerK>=0&&value.cheerK<=1e9));
+  }
+  function setActual(entity,date,value,month){
+    if(!validActuals({[date]:value},month))throw Error('実績の日時・数値を確認してください。');
+    if(!entity.actuals)entity.actuals={};
+    if(!value.earnedDay&&value.minutes===null&&value.cheerK===null)delete entity.actuals[date];
+    else entity.actuals[date]={...value};
+  }
+  function actualTotals(entity){
+    return Object.values(entity.actuals||{}).reduce((total,value)=>({days:total.days+Number(value.earnedDay),minutes:total.minutes+(value.minutes??0),cheerK:total.cheerK+(value.cheerK??0),records:total.records+1,timeRecords:total.timeRecords+Number(value.minutes!==null),cheerRecords:total.cheerRecords+Number(value.cheerK!==null)}),{days:0,minutes:0,cheerK:0,records:0,timeRecords:0,cheerRecords:0});
+  }
+  globalThis.PocoCalendar = Object.freeze({ monthInfo, dates, validSchedule, validAccounts, accountDetails, setDay, validActuals, setActual, actualTotals });
 })();
