@@ -172,7 +172,8 @@ dialog .dialog-header{background:var(--surface);border-bottom:1px solid var(--li
  .color-panel button,.table-tools .toolbar button,.table-tools .toolbar .file{min-height:48px;font-size:13px}
  .table-tools .toolbar .file{display:flex;align-items:center}
  .cheer-picker [role=option]{min-height:48px}
- dialog button,dialog input:not([type=checkbox]):not([type=radio]),dialog select,dialog textarea{min-height:48px}
+ :is(#coinDialog,#actualAccountDialog,#findLiverDialog,#scheduleDialog) button:not([hidden]),#entityCalendar .calendar-day{min-height:48px}
+ #coinDialog input:not([type=checkbox]):not([type=radio]),#coinDialog select,#coinDialog textarea,#findLiverDialog input{min-height:48px}
  dialog summary{display:flex;align-items:center;min-height:48px}
  #pairNavigation button{min-height:48px}
  dialog .calendar-day{min-height:48px}
