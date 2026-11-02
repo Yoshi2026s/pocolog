@@ -454,7 +454,24 @@ $('daySchedule').oninput=()=>{
  PocoCalendar.setDay(entity,currentEntity.date,$('daySchedule').value);renderEntityCalendar();plannerSaved();
 };
 $('coinDialogClose').onclick=()=>$('coinDialog').close();
-let scheduleRow=null;
+let scheduleRow=null,scheduleTrigger=null;
+function closeScheduleEditor(restoreFocus=false){
+ const editor=$('scheduleDialog'),trigger=scheduleTrigger;
+ if(editor.matches(':popover-open'))editor.hidePopover();
+ document.body.append(editor);trigger?.setAttribute('aria-expanded','false');scheduleTrigger=null;scheduleRow=null;
+ if(restoreFocus&&trigger?.isConnected)trigger.focus({preventScroll:true});
+}
+function positionScheduleEditor(){
+ if(!scheduleTrigger)return;const editor=$('scheduleDialog'),view=visibleViewport(),rect=scheduleTrigger.getBoundingClientRect();
+ const width=Math.min(editor.classList.contains('is-closing')?92:300,view.width-16);
+ editor.style.width=width+'px';editor.style.maxHeight=Math.min(editor.classList.contains('is-closing')?180:560,view.height-16)+'px';
+ const height=editor.getBoundingClientRect().height;
+ const below=view.top+view.height-rect.bottom-8,above=rect.top-view.top-8;
+ const top=below>=height||below>=above?rect.bottom+2:rect.top-height-2;
+ editor.style.left=Math.max(view.left+8,Math.min(rect.left,view.left+view.width-width-8))+'px';editor.style.top=Math.max(view.top+8,Math.min(top,view.top+view.height-height-8))+'px';
+}
+window.addEventListener('resize',positionScheduleEditor);window.visualViewport?.addEventListener('resize',positionScheduleEditor);window.visualViewport?.addEventListener('scroll',positionScheduleEditor);
+window.addEventListener('scroll',event=>{if(scheduleTrigger&&!$('scheduleDialog').contains(event.target))positionScheduleEditor();},true);
 function commitSchedule(field,value){
  if(!scheduleRow||!data.rows.includes(scheduleRow))return;
  const index=data.rows.indexOf(scheduleRow);
@@ -480,23 +497,32 @@ function renderReleaseCalendar(row){
   button.onclick=()=>commitSchedule('releaseDate',`${date.day}日${$('releaseTentative').checked?'(仮)':''}`);calendar.append(button);
  }
 }
-function showSchedule(row,field){
- scheduleRow=row;const isRelease=field==='releaseDate';$('scheduleTitle').textContent=`${row.name}の${isRelease?'解禁日':'締め'}`;
- $('closingEditor').hidden=isRelease;$('releaseEditor').hidden=!isRelease;
- const closing=row.closingTime||'';$('closingTimeInput').value=['','0時','22時','13時'].includes(closing)?closing:'';
- $('closingCurrent').textContent=`現在：${closing||'空欄'}`;
+function showSchedule(row,field,trigger){
+ if(scheduleTrigger===trigger){closeScheduleEditor(true);return;}
+ closeScheduleEditor();closeCheerPicker();scheduleRow=row;scheduleTrigger=trigger;
+ const isRelease=field==='releaseDate',editor=$('scheduleDialog');$('scheduleTitle').textContent=`${row.name}の${isRelease?'解禁日':'締め'}`;
+ editor.classList.toggle('is-closing',!isRelease);$('closingEditor').hidden=isRelease;$('releaseEditor').hidden=!isRelease;
  if(isRelease)renderReleaseCalendar(row);
- updateOverlayViewport();$('scheduleDialog').showModal();$('scheduleDialog').scrollTop=0;
- const target=isRelease?$('releaseCalendar').querySelector('[aria-pressed=true]')||$('releaseCalendar').querySelector('button'):$('closingTimeInput');
- target?.focus({preventScroll:true});
+ else{
+  const list=$('closingTimeInput');list.replaceChildren();
+  for(const value of ['','0時','22時','13時']){const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.setAttribute('aria-selected',String((row.closingTime||'')===value));option.textContent=value;if(!value)option.setAttribute('aria-label','空欄');option.onclick=()=>commitSchedule('closingTime',value);list.append(option);}
+ }
+ trigger.closest('td').append(editor);trigger.setAttribute('aria-expanded','true');editor.showPopover();positionScheduleEditor();
+ const target=isRelease?$('releaseCalendar').querySelector('[aria-pressed=true]')||$('releaseCalendar').querySelector('button'):$('closingTimeInput').querySelector('[aria-selected=true]')||$('closingTimeInput').querySelector('button');target?.focus({preventScroll:true});
 }
 function scheduleField(row,field,label){
  const button=document.createElement('button');button.type='button';button.className='schedule-field';button.setAttribute('aria-label',`${row.name}の${label}`);button.title=field==='releaseDate'?PocoRows.formatRelease(row[field],book.currentMonth):row[field]||'';
- button.textContent=button.title;button.onclick=()=>showSchedule(row,field);return button;
+ button.textContent=button.title;button.setAttribute('aria-expanded','false');button.setAttribute('aria-controls','scheduleDialog');button.onclick=()=>showSchedule(row,field,button);return button;
 }
-$('scheduleClose').onclick=()=>$('scheduleDialog').close();
-$('scheduleDialog').addEventListener('close',()=>{scheduleRow=null;});
-$('closingTimeInput').onchange=()=>commitSchedule('closingTime',$('closingTimeInput').value);
+$('scheduleClose').onclick=()=>closeScheduleEditor(true);
+$('scheduleDialog').addEventListener('toggle',event=>{if(event.newState==='closed'&&!$('scheduleDialog').matches(':popover-open'))closeScheduleEditor();});
+$('scheduleDialog').addEventListener('keydown',event=>{
+ if(event.key==='Escape'){event.preventDefault();closeScheduleEditor(true);return;}
+ if(!$('scheduleDialog').classList.contains('is-closing'))return;
+ const options=[...$('closingTimeInput').querySelectorAll('[role=option]')],index=options.indexOf(document.activeElement);let next;
+ if(event.key==='ArrowDown')next=Math.min(options.length-1,index+1);if(event.key==='ArrowUp')next=Math.max(0,index-1);if(event.key==='Home')next=0;if(event.key==='End')next=options.length-1;
+ if(next!==undefined){event.preventDefault();options[next].focus();}
+});
 $('releaseUndecided').onclick=()=>commitSchedule('releaseDate','未定');
 $('releaseClear').onclick=()=>commitSchedule('releaseDate','');
 let renderedMonth=null;
@@ -522,7 +548,7 @@ function render(){
  if(rowSort.month!==book.currentMonth)rowSort={field:null,direction:1,month:book.currentMonth};
  closeCheerPicker();
  if($('coinDialog').open)$('coinDialog').close();
- if($('scheduleDialog').open)$('scheduleDialog').close();
+ closeScheduleEditor();
  const table=$('grid');table.style.setProperty('--account-count',data.columns.length);table.style.setProperty('--compact-table-min-width',data.columns.length>15?`${106+data.columns.length*13}px`:'286px');table.replaceChildren();const head=table.createTHead().insertRow();
  cell(head,'th').textContent='ライバー名';
  sortHeader(head,'closingTime','締め','closing-col');sortHeader(head,'releaseDate','解禁日','release-col');
