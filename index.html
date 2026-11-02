@@ -137,6 +137,12 @@ button:focus-visible,summary:focus-visible,.file:focus-within{outline:2px solid 
 #scheduleDialog section[hidden]{display:none}
 /* Hide the top metrics while retaining totals in the summary section. */
 .cards{display:none}
+#grid button.schedule-field.recent-schedule{background:#d8efdf;box-shadow:inset 0 0 0 2px #287454}
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){
+ .shared-panel>button,.shared-panel>.table-tools>summary{min-height:40px}
+ .table-bar .primary-tools button{min-height:36px;font-size:11px}
+ #currentDateTime{font-size:11px}#currentTime{font-size:13px}
+}
 </style>
 <header><h1>◉ ポコログ</h1><small>応援の記録を、わかりやすく。</small></header>
 <main><div class="page-title"><h2>ポコログ</h2><label class="month-label">記録月 <input type="month" id="month" aria-label="記録する月"></label></div><p class="intro">ライバーごとに、自分の各アカウントのエール数を記録しましょう。</p>

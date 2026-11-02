@@ -153,6 +153,12 @@ $('findLiver').onclick=()=>{
 $('findLiverClose').onclick=()=>$('findLiverDialog').close();
 $('liverSearch').oninput=showLiverSearchResults;
 $('liverSearch').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('liverSearchResults').querySelector('button')?.click();}});
+function revealGridRow(index){
+ const table=$('grid'),wrap=table.parentElement,row=table.tBodies[0]?.rows[index];if(!row)return;
+ const bounds=wrap.getBoundingClientRect(),rect=row.getBoundingClientRect(),header=table.tHead.getBoundingClientRect().height;
+ if(rect.top<bounds.top+header)wrap.scrollTop-=bounds.top+header-rect.top;
+ else if(rect.bottom>bounds.bottom)wrap.scrollTop+=rect.bottom-bounds.bottom;
+}
 let rowSort={field:null,direction:1,month:''};
 let rowDrag=null,suppressRowClick=false;
 document.addEventListener('click',event=>{if(suppressRowClick&&event.target.closest('#grid')){event.preventDefault();event.stopImmediatePropagation();suppressRowClick=false;}},true);
@@ -165,12 +171,13 @@ function moveLiver(row,to){
  const from=data.rows.indexOf(row);if(from<0||to<0||to>=data.rows.length||from===to)return;
  data.rows=PocoRows.moveRow(data.rows,from,to);rowSort={field:null,direction:1,month:book.currentMonth};save();render();
  $('orderStatus').textContent=`${row.name}を${to+1}番目に移動しました`;
- document.querySelectorAll('#grid tbody .name-trigger')[to]?.focus({preventScroll:true});
+ revealGridRow(to);document.querySelectorAll('#grid tbody .name-trigger')[to]?.focus({preventScroll:true});
 }
 function sortLivers(field){
  const direction=rowSort.field===field&&rowSort.month===book.currentMonth?-rowSort.direction:1;
  rowSort={field,direction,month:book.currentMonth};const ordered=PocoRows.sortRows(data.rows,field,direction,book.currentMonth);
  const changed=ordered.some((row,index)=>row!==data.rows[index]);data.rows=ordered;if(changed)save();render();
+ $('grid').parentElement.scrollTop=0;$('grid').parentElement.scrollLeft=0;
  $('orderStatus').textContent=`${field==='closingTime'?'締め':'解禁日'}の${direction===1?'早い':'遅い'}順に並び替えました。未定・空欄は末尾です。`;
  document.querySelector(`[data-sort-field="${field}"]`)?.focus({preventScroll:true});
 }
@@ -335,7 +342,11 @@ $('coinDialogClose').onclick=()=>$('coinDialog').close();
 let scheduleRow=null;
 function commitSchedule(field,value){
  if(!scheduleRow||!data.rows.includes(scheduleRow))return;
+ const index=data.rows.indexOf(scheduleRow);
  scheduleRow[field]=value;rowSort={field:null,direction:1,month:book.currentMonth};save();render();
+ revealGridRow(index);
+ const button=$('grid').tBodies[0]?.rows[index]?.querySelector(field==='releaseDate'?'.release-col button':'.closing-col button');
+ if(button){button.focus({preventScroll:true});button.classList.add('recent-schedule');setTimeout(()=>button.classList.remove('recent-schedule'),1800);}
 }
 function renderReleaseCalendar(row){
  const month=book.currentMonth,info=PocoCalendar.monthInfo(month),calendar=$('releaseCalendar');
