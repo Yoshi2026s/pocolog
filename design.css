@@ -285,3 +285,7 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 #finishPairEntry,#finishActualEntry{background:#e3f0e6;border-color:#a3c5af;color:#235b40}
 #coinDialog .actual-error:empty{display:none}
 #coinDialog input[aria-invalid=true]{border-color:#ad4937;outline:2px solid #ad4937;outline-offset:1px;background:#fff4f0}
+
+/* Keep the same undo action within reach of the fields it restores. */
+#undoActualAction{min-height:44px;background:#e6f2e9;border-color:#a3c5af;color:#235b40;margin:8px 0}
+#undoActualAction[hidden]{display:none}

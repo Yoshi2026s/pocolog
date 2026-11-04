@@ -569,7 +569,7 @@ function currentMissingActualDates(){
  const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  return PocoCalendar.missingActualDates(entity,currentEntity.month,today);
 }
-$('undoActualBulk').onclick=()=>$('undoActualAction').click();
+$('undoActualBulk').onclick=()=>undoActualDay(false);
 $('findMissingActual').onclick=()=>{
  const missing=currentMissingActualDates();if(!missing.length)return;
  if(selectEntityDay(missing.find(date=>date>currentEntity.date)||missing[0]))focusActualEditor();
@@ -582,7 +582,8 @@ function updateActualTools(){
  $('copyPreviousActualTime').disabled=index<1||entity.actuals?.[dates[index-1].date]?.minutes==null;
  $('actualMinus15').disabled=!(value?.minutes>0);$('clearActualDay').disabled=!value;
  const canUndo=lastActualAction&&lastActualAction.row===entity&&lastActualAction.table===data&&JSON.stringify(entity.actuals||{})===JSON.stringify(lastActualAction.after);
- $('undoActualAction').hidden=!canUndo;$('undoActualBulk').hidden=!(canUndo&&lastActualAction.bulk);
+ const invalidDraft=hasInvalidActualDayDraft();
+ $('undoActualAction').hidden=!canUndo&&!invalidDraft;$('undoActualAction').textContent=invalidDraft?'未保存の入力を戻す':'直前の操作を元に戻す';$('undoActualBulk').hidden=!(canUndo&&lastActualAction.bulk);
  const missing=currentMissingActualDates();$('actualMissingInfo').textContent=`今日までの未記録候補 ${missing.length}日（予定あり・未記録、または時間未入力）`;$('findMissingActual').disabled=!missing.length;previewActualBulk();
 }
 function applyActualAction(next,message){
@@ -610,10 +611,21 @@ $('copyPreviousActualTime').onclick=()=>{
 $('clearActualDay').onclick=()=>{
  const entity=entityDetails();if(!isActualContext()||!entity)return;const next=structuredClone(entity.actuals||{});delete next[currentEntity.date];applyActualAction(next,'この日の実績を消去しました。「元に戻す」で復元できます。');
 };
-$('undoActualAction').onclick=()=>{
- const entity=entityDetails(),action=lastActualAction;if(!action||action.row!==entity||action.table!==data||JSON.stringify(entity.actuals||{})!==JSON.stringify(action.after))return;
+$('undoActualAction').onclick=()=>undoActualDay();
+function hasInvalidActualDayDraft(){
+ const hours=$('actualHours'),minutes=$('actualMinutes'),inputs=currentEntity?.kind==='pair'?[hours,minutes]:[hours,minutes,$('actualCheer')];
+ return inputs.some(input=>!input.validity.valid)||Number(hours.value||0)*60+Number(minutes.value||0)>1440;
+}
+function undoActualDay(restoreDraft=true){
+ const entity=entityDetails(),action=lastActualAction;if(!isActualContext()||!entity)return;
+ if(restoreDraft&&hasInvalidActualDayDraft()){
+  loadActualDay(entity,currentEntity.date);lastActualAction=action;updateActualTools();
+  $('plannerStatus').textContent='未保存の入力を保存済みの値へ戻しました。';focusActualEditor();return;
+ }
+ if(!action||action.row!==entity||action.table!==data||JSON.stringify(entity.actuals||{})!==JSON.stringify(action.after))return;
  entity.actuals=structuredClone(action.before);actualBulkAppliedSignature='';lastActualAction=null;loadActualDay(entity,currentEntity.date);renderEntityCalendar();stats();plannerSaved('直前の実績操作を元に戻しました。');
-};
+ focusActualEditor();
+}
 function previewActualRange(event){
  if(!isActualContext())return;
  const start=$('actualRangeStart').value,end=$('actualRangeEnd').value;
@@ -663,11 +675,13 @@ function invalidActualDayInput(){
 function saveActualDay(event){
  if(!isActualContext())return;const entity=entityDetails();if(!entity)return;
  const hours=$('actualHours'),minutes=$('actualMinutes'),cheer=$('actualCheer');
- if(invalidActualDayInput())return;
+ if(invalidActualDayInput()){updateActualTools();return;}
  const duration=hours.value===''&&minutes.value===''?null:Number(hours.value||0)*60+Number(minutes.value||0);
  const cheerK=currentEntity.kind==='pair'?(entity.actuals?.[currentEntity.date]?.cheerK??null):cheer.value===''?null:Number(cheer.value);
  if(event.target!==$('actualEarnedDay')&&(duration>0||cheerK>0))$('actualEarnedDay').checked=true;
- lastActualAction=null;PocoCalendar.setActual(entityDetails(true),currentEntity.date,{earnedDay:$('actualEarnedDay').checked,minutes:duration,cheerK},currentEntity.month);
+ const before=structuredClone(entity.actuals||{}),target=entityDetails(true);
+ PocoCalendar.setActual(target,currentEntity.date,{earnedDay:$('actualEarnedDay').checked,minutes:duration,cheerK},currentEntity.month);
+ if(JSON.stringify(before)!==JSON.stringify(target.actuals||{}))lastActualAction={row:target,table:data,before,after:structuredClone(target.actuals||{})};
  $('actualError').textContent='';updateActualTotals();renderEntityCalendar();stats();plannerSaved();previewActualRange();
 }
 for(const id of ['actualHours','actualMinutes','actualCheer'])$(id).addEventListener('input',saveActualDay);
