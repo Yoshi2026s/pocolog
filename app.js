@@ -39,16 +39,21 @@ function setMonthView(view){
 }
 let focusedAccount=null,roomyView=false;
 try{roomyView=localStorage.getItem('pocolog.roomy-view.v1')==='1';}catch{}
+function setFocusedAccount(index){
+ focusedAccount=index;closeCheerPicker();closeScheduleEditor();applyAccountView();$('grid').parentElement.scrollLeft=0;$('viewControls').open=false;
+ $('viewControlsSummary').focus({preventScroll:true});requestAnimationFrame(fitTableViewport);
+}
+$('backToAllAccounts').onclick=()=>setFocusedAccount(null);
 function applyAccountView(){
  if(focusedAccount!==null&&(focusedAccount<0||focusedAccount>=data.columns.length))focusedAccount=null;
  const focused=focusedAccount!==null,panel=$('tablePanel');panel.classList.toggle('account-focused',focused);panel.classList.toggle('roomy-view',roomyView);
  $('grid').style.setProperty('--account-count',focused?1:data.columns.length);
  for(const row of $('grid').rows)for(let j=0;j<data.columns.length;j++)if(row.cells[j+3])row.cells[j+3].hidden=focused&&j!==focusedAccount;
  $('viewControlsSummary').textContent=focused?`表示：${data.columns[focusedAccount]}`:'表示';
- $('roomyView').setAttribute('aria-pressed',String(roomyView));
+ $('roomyView').setAttribute('aria-pressed',String(roomyView));$('backToAllAccounts').hidden=!focused;$('timeViewNote').textContent=focused&&!roomyView?'日数 ／ 時間（時:分）　各欄を押して編集':'上：日数 ／ 下：時間（時:分）　各欄を押して編集';
  const choices=$('accountViewChoices');choices.replaceChildren();
  for(const [index,name] of [[null,'全アカウント'],...data.columns.map((name,index)=>[index,name])]){
-  const button=document.createElement('button');button.type='button';button.textContent=name;button.setAttribute('aria-pressed',String(focusedAccount===index));button.onclick=()=>{focusedAccount=index;closeCheerPicker();closeScheduleEditor();applyAccountView();$('grid').parentElement.scrollLeft=0;$('viewControls').open=false;$('viewControlsSummary').focus();requestAnimationFrame(fitTableViewport);};choices.append(button);
+  const button=document.createElement('button');button.type='button';button.textContent=name;button.setAttribute('aria-pressed',String(focusedAccount===index));button.onclick=()=>setFocusedAccount(index);choices.append(button);
  }
 }
 $('roomyView').onclick=()=>{roomyView=!roomyView;try{localStorage.setItem('pocolog.roomy-view.v1',roomyView?'1':'0');}catch{}applyAccountView();$('viewControls').open=false;$('viewControlsSummary').focus();requestAnimationFrame(fitTableViewport);};
@@ -756,12 +761,15 @@ function stats(){
 }
 
 function fitTableViewport(){
- const wrap=$('grid').parentElement;
- document.documentElement.style.setProperty('--bottom-menu-height',$('bottomMenus').getBoundingClientRect().height+'px');
- if(!window.matchMedia('(max-width:700px), (max-height:500px) and (max-width:1000px)').matches){wrap.style.maxHeight='';wrap.style.minHeight='';return;}
- const top=wrap.getBoundingClientRect().top+window.scrollY;const viewportHeight=Math.max(window.innerHeight,document.documentElement.clientHeight);
- const menuHeight=$('bottomMenus').getBoundingClientRect().height;
- const available=Math.max(64,viewportHeight-top-menuHeight-8);
+ const wrap=$('grid').parentElement,menuHeight=$('bottomMenus').getBoundingClientRect().height;
+ document.documentElement.style.setProperty('--bottom-menu-height',menuHeight+'px');
+ const top=wrap.getBoundingClientRect().top+window.scrollY,viewportHeight=Math.max(window.innerHeight,document.documentElement.clientHeight);
+ const available=Math.max(64,viewportHeight-top-menuHeight-8),compactFocus=focusedAccount!==null&&!roomyView;
+ if(compactFocus){
+  const rowHeight=Math.max(16,Math.min(32,Math.floor((available-34)/Math.max(1,data.rows.length))-1));
+  $('grid').style.setProperty('--focus-row-height',rowHeight+'px');$('grid').style.setProperty('--focus-row-font',rowHeight<22?'10px':'12px');
+ }
+ if(!compactFocus&&!window.matchMedia('(max-width:700px), (max-height:500px) and (max-width:1000px)').matches){wrap.style.maxHeight='';wrap.style.minHeight='';return;}
  wrap.style.maxHeight=available+'px';wrap.style.minHeight=Math.min(120,available)+'px';
 }
 // Phone keyboards can finish closing after the dialog's render and only emit
