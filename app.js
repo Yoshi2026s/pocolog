@@ -761,7 +761,7 @@ function fitTableViewport(){
  if(!window.matchMedia('(max-width:700px), (max-height:500px) and (max-width:1000px)').matches){wrap.style.maxHeight='';wrap.style.minHeight='';return;}
  const top=wrap.getBoundingClientRect().top+window.scrollY;const viewportHeight=Math.max(window.innerHeight,document.documentElement.clientHeight);
  const menuHeight=$('bottomMenus').getBoundingClientRect().height;
- const available=Math.max(64,viewportHeight-top-menuHeight-(viewportHeight<=500?12:56));
+ const available=Math.max(64,viewportHeight-top-menuHeight-8);
  wrap.style.maxHeight=available+'px';wrap.style.minHeight=Math.min(120,available)+'px';
 }
 // Phone keyboards can finish closing after the dialog's render and only emit
@@ -787,13 +787,14 @@ document.addEventListener('focusout',refreshTableViewport);
 document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('close',refreshTableViewport));
 updateOverlayViewport();
 const tableViewportObserver=new ResizeObserver(()=>requestAnimationFrame(fitTableViewport));
-for(const selector of ['header','.page-title','.shared-panel','.cards','.table-bar','#bottomMenus'])tableViewportObserver.observe(document.querySelector(selector));
+for(const selector of ['header','.page-title','.cards','.table-bar','#bottomMenus'])tableViewportObserver.observe(document.querySelector(selector));
 const toolsMenu=document.querySelector('.table-tools');
 function positionToolsMenu(){
  if(!toolsMenu.open)return;const menu=toolsMenu.querySelector('.toolbar');const anchor=toolsMenu.querySelector('summary').getBoundingClientRect();
  const view=visibleViewport();menu.style.maxWidth=Math.max(0,view.width-16)+'px';
- const width=menu.getBoundingClientRect().width;const top=Math.max(view.top+8,anchor.top-Math.min(420,view.height-24)-6);
- menu.style.left=Math.max(view.left+8,Math.min(anchor.left,view.left+view.width-width-8))+'px';menu.style.top=top+'px';menu.style.maxHeight=Math.max(80,view.top+view.height-top-8)+'px';
+ menu.style.maxHeight=Math.max(48,Math.min(420,anchor.top-view.top-16))+'px';
+ const rect=menu.getBoundingClientRect(),top=Math.max(view.top+8,anchor.top-rect.height-6);
+ menu.style.left=Math.max(view.left+8,Math.min(anchor.left,view.left+view.width-rect.width-8))+'px';menu.style.top=top+'px';
 }
 document.addEventListener('pointerdown',event=>{if(toolsMenu.open&&!toolsMenu.contains(event.target))toolsMenu.open=false;});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&toolsMenu.open){event.preventDefault();toolsMenu.open=false;toolsMenu.querySelector('summary').focus({preventScroll:true});}});
