@@ -270,3 +270,12 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
  .bottom-menus .cheer-undo-bar,.bottom-menus .time-view-note{flex-basis:100%;width:100%}
  .bottom-menus #cheerUndoMessage{flex-basis:auto}
 }
+
+/* Move between accounts without closing the current liver's entry screen. */
+.pair-account-navigation{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:12px;color:var(--muted)}
+.pair-account-navigation[hidden]{display:none}
+.pair-account-navigation select{flex:1;min-width:0;max-width:100%;min-height:48px;font-size:16px;color:var(--ink)}
+#backToActualCalendar{margin:8px 0;background:#eef5eb;color:#235b40}
+/* Larger text should also reveal the name instead of keeping an ellipsis. */
+#tablePanel.roomy-view #grid .liver-name-text{white-space:normal;overflow-wrap:anywhere;overflow:visible}
+#tablePanel.roomy-view #grid tbody td.name button.name-trigger{height:auto;white-space:normal;overflow:visible}
