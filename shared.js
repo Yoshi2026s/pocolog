@@ -44,7 +44,11 @@ function retainSyncState(revision, clean) {
 }
 
 let connected = false, busy = false, ref;
-function message(text) { status.textContent = text; }
+function message(text, synced = false) {
+  status.textContent = synced ? '同期済' : '未同期';
+  status.title = text;status.dataset.synced = String(synced);
+  const detail = document.getElementById('syncDetailText');if (detail) detail.textContent = text;
+}
 function buttons() { saveButton.disabled = !connected || busy; reloadButton.disabled = !connected || busy; }
 function backupLocal() {
   // Preserve the old local record before showing the shared table.
@@ -60,7 +64,7 @@ function apply(record) {
   const migrated=api.setBook(next);
   if(migrated){state.edit();localStorage.setItem(pendingKey,'1');}
   retainSyncState(record.revision, !migrated);
-  message(migrated?'不足するアカウントを追加しました。「保存」で反映できます。':'共有先と同期済み');
+  message(migrated?'不足するアカウントを追加しました。「保存」で反映できます。':'共有先と同期済み', !migrated);
   return migrated;
 }
 function read(snapshot) {
@@ -93,7 +97,7 @@ saveButton.onclick = async () => {
       state.latest = { revision: state.revision, payload };
     }
     retainSyncState(state.revision, clean);
-    message(clean ? '共有先に保存しました' : '保存中に追加した変更が未共有です。もう一度保存してください。');
+    message(clean ? '共有先に保存しました' : '保存中に追加した変更が未共有です。もう一度保存してください。', clean && (!state.latest || state.latest.revision <= state.revision));
   } catch (error) { message(`共有保存できませんでした。${error.message} 入力はこのブラウザに残っています。`); }
   finally { busy = false; buttons(); }
 };
@@ -154,7 +158,7 @@ async function start() {
           if (backedUp) {
             const migrated = apply(record);
             if (migrated) state.revision = record.revision; else state.accept();
-            message(migrated?'最新版を自動読込しました。不足するアカウントの追加は「保存」で反映できます。':'最新版を自動読込しました。以前の未共有入力は「その他」から保存できます。');
+            message(migrated?'最新版を自動読込しました。不足するアカウントの追加は「保存」で反映できます。':'最新版を自動読込しました。以前の未共有入力は「その他」から保存できます。', !migrated);
           }
         }
         else if (received) apply(record);

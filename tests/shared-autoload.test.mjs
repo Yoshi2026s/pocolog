@@ -9,7 +9,7 @@ async function setup({pending=false,failBackup=false,migrated=false}={}){
  const local={version:2,name:'local'},remote={version:2,name:'shared'};
  const storage=new Map([['pocolog.v1',JSON.stringify(local)],['pocolog.shared-revision.v1','3']]);if(pending)storage.set('pocolog.pending.v1','1');
  const elements=new Map(),listeners={},loaded=[],downloads=[];let current=local,receive,error,editing=true;
- const element=()=>({hidden:false,disabled:false,textContent:'',append(){}});
+ const element=()=>({hidden:false,disabled:false,textContent:'',dataset:{},append(){}});
  const document={getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},createElement:element,querySelector:()=>element()};
  const localStorage={getItem:key=>storage.get(key)??null,setItem(key,value){if(failBackup&&key==='pocolog.before-auto-load.v1')throw Error('quota');storage.set(key,value);},removeItem:key=>storage.delete(key)};
  const api={validBook:book=>book?.version===2,getBook:()=>structuredClone(current),setBook(book){current=structuredClone(book);loaded.push(book);storage.set('pocolog.v1',JSON.stringify(book));return migrated;},downloadBackup:book=>downloads.push(book??current),setEditing:value=>editing=value};
@@ -20,10 +20,10 @@ async function setup({pending=false,failBackup=false,migrated=false}={}){
 }
 
 test('startup loads server data automatically, without a click or remote write',async()=>{
- const h=await setup();assert.equal(h.editing,false);h.snapshot();assert.deepEqual(h.current,h.remote);assert.equal(h.elements.get('sharedReload').disabled,false);assert.equal(h.storage.get('pocolog.shared-revision.v1'),'7');assert.equal(h.storage.has('pocolog.pending.v1'),false);
+ const h=await setup();assert.equal(h.editing,false);h.snapshot();assert.equal(h.elements.get('sharedStatus').textContent,'同期済');assert.deepEqual(h.current,h.remote);assert.equal(h.elements.get('sharedReload').disabled,false);assert.equal(h.storage.get('pocolog.shared-revision.v1'),'7');assert.equal(h.storage.has('pocolog.pending.v1'),false);
 });
 test('startup pending input is backed up before loading latest, with a downloadable recovery',async()=>{
- const h=await setup({pending:true});h.snapshot();assert.deepEqual(JSON.parse(h.storage.get('pocolog.before-auto-load.v1')),h.local);assert.deepEqual(h.current,h.remote);assert.equal(h.storage.has('pocolog.pending.v1'),false);h.edit();h.snapshot({revision:8,payload:JSON.stringify({version:2,name:'new remote'})});assert.deepEqual(h.current,h.remote);assert.match(h.elements.get('sharedStatus').textContent,/未共有/);
+ const h=await setup({pending:true});h.snapshot();assert.deepEqual(JSON.parse(h.storage.get('pocolog.before-auto-load.v1')),h.local);assert.deepEqual(h.current,h.remote);assert.equal(h.storage.has('pocolog.pending.v1'),false);h.edit();h.snapshot({revision:8,payload:JSON.stringify({version:2,name:'new remote'})});assert.deepEqual(h.current,h.remote);assert.match(h.elements.get('syncDetailText').textContent,/未共有/);
 });
 test('new edits while connecting, cached data, absent records and invalid data cannot overwrite input',async()=>{
  const h=await setup({pending:true});h.snapshot(undefined,{fromCache:true,hasPendingWrites:false});assert.deepEqual(h.current,h.local);h.edit();h.snapshot();assert.deepEqual(h.current,h.local);assert.equal(h.storage.get('pocolog.pending.v1'),'1');assert.equal(h.storage.has('pocolog.before-auto-load.v1'),false);
@@ -31,7 +31,7 @@ test('new edits while connecting, cached data, absent records and invalid data c
  const bad=await setup({pending:true});bad.snapshot({revision:7,payload:'invalid json'});assert.deepEqual(bad.current,bad.local);assert.equal(bad.storage.get('pocolog.pending.v1'),'1');
 });
 test('backup failure or connection failure preserves pending input and manual recovery remains available',async()=>{
- const h=await setup({pending:true,failBackup:true});h.snapshot();assert.deepEqual(h.current,h.local);assert.equal(h.storage.get('pocolog.pending.v1'),'1');assert.equal(h.elements.get('sharedReload').disabled,false);assert.match(h.elements.get('sharedStatus').textContent,/自動読込を保留/);
+ const h=await setup({pending:true,failBackup:true});h.snapshot();assert.equal(h.elements.get('sharedStatus').textContent,'未同期');assert.deepEqual(h.current,h.local);assert.equal(h.storage.get('pocolog.pending.v1'),'1');assert.equal(h.elements.get('sharedReload').disabled,false);assert.match(h.elements.get('syncDetailText').textContent,/自動読込を保留/);
  const offline=await setup({pending:true});offline.fail();assert.deepEqual(offline.current,offline.local);assert.equal(offline.editing,true);assert.equal(offline.storage.get('pocolog.pending.v1'),'1');
 });
 test('migrations after automatic load remain pending at the received revision',async()=>{
