@@ -229,28 +229,39 @@ $('undoCheer').onclick=()=>{
  $('orderStatus').textContent=`${edit.row.name}・${edit.account}の入力を元に戻しました`;
 };
 const normalizeSearch=value=>value.normalize('NFKC').toLocaleLowerCase('ja-JP').replace(/[ァ-ヶ]/g,char=>String.fromCharCode(char.charCodeAt(0)-0x60)).trim();
-let foundLiverTimer;
+let foundLiverTimer,nameSearchKind='liver';
 function showLiverSearchResults(){
- const query=normalizeSearch($('liverSearch').value);const matches=data.rows.filter(row=>normalizeSearch(row.name).includes(query));
- $('liverSearchCount').textContent=matches.length?`${matches.length}人 ／ 名前を押すと一覧へ移動`:'該当するライバーがいません';
+ const query=normalizeSearch($('liverSearch').value),accountMode=nameSearchKind==='account';
+ const entries=accountMode?data.columns.map((name,index)=>({name,index})):data.rows.map((row,index)=>({name:row.name,index,row}));
+ const matches=entries.filter(entry=>normalizeSearch(entry.name).includes(query));
+ $('searchKindLiver').setAttribute('aria-pressed',String(!accountMode));$('searchKindAccount').setAttribute('aria-pressed',String(accountMode));
+ $('nameSearchLabel').textContent=accountMode?'アカウント名':'ライバー名';$('liverSearch').placeholder=accountMode?'アカウント名の一部を入力':'ライバー名の一部を入力';$('clearNameSearch').disabled=$('liverSearch').value==='';
+ $('liverSearchCount').textContent=matches.length?`${matches.length}${accountMode?'アカウント':'人'} ／ ${accountMode?'名前を押すとアカウント別表示':'名前を押すと一覧へ移動'}`:`該当する${accountMode?'アカウント':'ライバー'}がありません`;
  $('liverSearchResults').replaceChildren();
- for(const row of matches){
-  const button=document.createElement('button');button.type='button';button.textContent=row.name||'（未設定）';
+ for(const entry of matches){
+  const button=document.createElement('button');button.type='button';button.textContent=entry.name||'（未設定）';
   button.onclick=()=>{
-   const index=data.rows.indexOf(row);if(index<0)return;
+   if(accountMode){
+    if(data.columns[entry.index]!==entry.name)return;
+    $('findLiverDialog').close();setFocusedAccount(entry.index);
+    $('grid').tHead?.rows[0]?.cells[entry.index+3]?.querySelector('.name-trigger')?.focus({preventScroll:true});$('orderStatus').textContent=`${entry.name}のアカウント別表示へ移動しました`;return;
+   }
+   const index=data.rows.indexOf(entry.row);if(index<0)return;
    $('findLiverDialog').close();const tr=$('grid').tBodies[0]?.rows[index];if(!tr)return;
    const wrap=$('grid').parentElement;wrap.scrollTop+=tr.getBoundingClientRect().top-wrap.getBoundingClientRect().top-$('grid').tHead.getBoundingClientRect().height;
    document.querySelectorAll('#grid .found-liver').forEach(el=>el.classList.remove('found-liver'));tr.classList.add('found-liver');clearTimeout(foundLiverTimer);foundLiverTimer=setTimeout(()=>tr.classList.remove('found-liver'),2500);
-   tr.querySelector('.name-trigger').focus({preventScroll:true});$('orderStatus').textContent=`${row.name}へ移動しました`;
+   tr.querySelector('.name-trigger').focus({preventScroll:true});$('orderStatus').textContent=`${entry.name}へ移動しました`;
   };$('liverSearchResults').append(button);
  }
 }
+for(const [id,kind] of [['searchKindLiver','liver'],['searchKindAccount','account']])$(id).onclick=()=>{nameSearchKind=kind;showLiverSearchResults();$('findLiverDialog').scrollTop=0;};
+$('clearNameSearch').onclick=()=>{$('liverSearch').value='';showLiverSearchResults();$('liverSearch').focus({preventScroll:true});};
 $('findLiver').onclick=()=>{
- closeCheerPicker();$('liverSearch').value='';showLiverSearchResults();updateOverlayViewport();$('findLiverDialog').showModal();$('findLiverDialog').scrollTop=0;$('liverSearch').focus({preventScroll:true});
+ closeCheerPicker();closeScheduleEditor();$('liverSearch').value='';showLiverSearchResults();updateOverlayViewport();$('findLiverDialog').showModal();$('findLiverDialog').scrollTop=0;$('findLiverClose').focus({preventScroll:true});
 };
 $('findLiverClose').onclick=()=>$('findLiverDialog').close();
 $('liverSearch').oninput=showLiverSearchResults;
-$('liverSearch').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('liverSearchResults').querySelector('button')?.click();}});
+$('liverSearch').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229){event.preventDefault();const results=$('liverSearchResults').querySelectorAll('button');if(results.length===1)results[0].click();}});
 function revealGridRow(index){
  const table=$('grid'),wrap=table.parentElement,row=table.tBodies[0]?.rows[index];if(!row)return;
  const bounds=wrap.getBoundingClientRect(),rect=row.getBoundingClientRect(),header=table.tHead.getBoundingClientRect().height;
@@ -446,7 +457,7 @@ function renderEntityCalendar(){
   button.setAttribute('aria-label',`${info.year}年${info.number}月${day.day}日の${currentEntity.kind==='pair'?'日数・時間':'配信予定'}`);button.setAttribute('aria-pressed',String(currentEntity.date===day.date));button.title=currentEntity.kind==='pair'?(actual?'日数・時間の記録あり':'未記録'):text||'予定なし';
   const number=document.createElement('span');number.className='day-number';number.textContent=day.day;
   const preview=document.createElement('span');preview.className='day-preview';preview.textContent=text.split('\n')[0]||(actual?'実績あり':'');button.append(number,preview);
-  button.onclick=()=>{selectEntityDay(day.date);$('entityCalendar').querySelector(`[data-date="${day.date}"]`)?.focus({preventScroll:true});};calendar.append(button);
+  button.onclick=()=>{selectEntityDay(day.date);if(currentEntity.kind==='pair')focusActualEditor();else $('entityCalendar').querySelector(`[data-date="${day.date}"]`)?.focus({preventScroll:true});};calendar.append(button);
  }
  const cells=info.weekday+info.days;for(let i=cells;i<Math.ceil(cells/7)*7;i++){const empty=document.createElement('span');empty.setAttribute('aria-hidden','true');calendar.append(empty);}
 }
