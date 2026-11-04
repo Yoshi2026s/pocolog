@@ -184,9 +184,9 @@ function cheerSelect(value,label,onchange,{actual=false,onDetails=null}={}){
   const heading=document.createElement('div');heading.className='cheer-picker-heading';const title=document.createElement('span');title.textContent=label;
   const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('aria-label','エール選択を閉じる');close.onclick=()=>closeCheerPicker(true);heading.append(title,close);
   const jumps=document.createElement('div');jumps.className='cheer-picker-jumps';jumps.setAttribute('role','group');jumps.setAttribute('aria-label','数字の範囲へ移動');
-  for(const start of [1,13,25,37]){const jump=document.createElement('button');jump.type='button';jump.textContent=`${start}〜${start+11}`;jump.onclick=()=>{const option=options[start+1];option.focus({preventScroll:true});list.scrollTop+=option.getBoundingClientRect().top-list.getBoundingClientRect().top;};jumps.append(jump);}
+  for(const start of [1,13,25,37]){const jump=document.createElement('button');jump.type='button';jump.textContent=`${start}〜${start+11}`;jump.onclick=()=>{const option=options[start+(actual?0:1)];option.focus({preventScroll:true});list.scrollTop+=option.getBoundingClientRect().top-list.getBoundingClientRect().top;};jumps.append(jump);}
   context.append(heading,jumps);const list=document.createElement('div');list.id='cheerChoices';list.setAttribute('role','listbox');list.setAttribute('aria-label',label+'のエール数');cheerPicker.append(context,list);
-  const choices=['',actual?'0':'〇',...Array.from({length:48},(_,i)=>String(i+1))];
+  const choices=['',...(actual?[]:['〇']),...Array.from({length:48},(_,i)=>String(i+1))];
   const options=choices.map((choice,index)=>{
    const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===0));option.tabIndex=-1;option.textContent=choice;if(choice==='')option.setAttribute('aria-label','空欄');
    option.onfocus=()=>options.forEach(item=>item.setAttribute('aria-selected',String(item===option)));
@@ -473,8 +473,8 @@ function setPairCheer(value){
 }
 function syncPairCheerSelect(){
  const select=$('pairCheerSelect'),value=entityDetails().cheerK;select.replaceChildren();
- for(const number of [null,...Array.from({length:49},(_,index)=>index)]){const option=document.createElement('option');option.value=number===null?'':String(number);option.textContent=number===null?'空欄（未記録）':String(number);select.append(option);}
- if(value!==null&&(!Number.isInteger(value)||value>48)){const option=document.createElement('option');option.value=String(value);option.textContent=`${fmt(value)}（現在の値）`;select.append(option);}
+ for(const number of [null,...Array.from({length:48},(_,index)=>index+1)]){const option=document.createElement('option');option.value=number===null?'':String(number);option.textContent=number===null?'空欄（未記録）':String(number);select.append(option);}
+ if(value!==null&&(value<1||!Number.isInteger(value)||value>48)){const option=document.createElement('option');option.value=String(value);option.textContent=`${fmt(value)}（現在の値）`;if(value===0){option.disabled=true;option.hidden=true;}select.append(option);}
  select.value=value===null?'':String(value);
 }
 $('pairCheerSelect').onchange=()=>setPairCheer($('pairCheerSelect').value===''?null:Number($('pairCheerSelect').value));
