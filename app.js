@@ -761,7 +761,7 @@ function fitTableViewport(){
  if(!window.matchMedia('(max-width:700px), (max-height:500px) and (max-width:1000px)').matches){wrap.style.maxHeight='';wrap.style.minHeight='';return;}
  const top=wrap.getBoundingClientRect().top+window.scrollY;const viewportHeight=Math.max(window.innerHeight,document.documentElement.clientHeight);
  const menuHeight=$('bottomMenus').getBoundingClientRect().height;
- const available=Math.max(96,viewportHeight-top-menuHeight-56);
+ const available=Math.max(64,viewportHeight-top-menuHeight-(viewportHeight<=500?12:56));
  wrap.style.maxHeight=available+'px';wrap.style.minHeight=Math.min(120,available)+'px';
 }
 // Phone keyboards can finish closing after the dialog's render and only emit
