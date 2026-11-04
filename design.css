@@ -240,3 +240,33 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 /* Search both kinds of names without forcing the phone keyboard to open. */
 .name-search-kind{display:flex;gap:5px;padding:4px;background:#edf3e9;border:1px solid #d1dfcf;border-radius:10px;margin-top:8px}.name-search-kind button{flex:1;min-height:44px;padding:7px 10px;border:0;background:transparent;font-size:13px}.name-search-kind button[aria-pressed=true]{background:#226c5e;color:#fff;box-shadow:0 2px 5px #193b2d12}.name-search-entry{display:flex;align-items:flex-end;gap:6px;margin:12px 0 8px}.name-search-entry .schedule-label{flex:1;min-width:0;margin:0;font-size:12px}.name-search-entry input{min-width:0;margin-top:4px}.name-search-entry>button{flex:none;min-height:48px;font-size:12px;padding:7px 10px}#liverSearchCount{margin:8px 0 10px;font-size:12px}#findLiverDialog .liver-search-results button{min-height:48px;padding:10px 12px;border-radius:9px}
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){.name-search-kind button{min-height:44px}.name-search-entry input{font-size:16px}.name-search-entry>button{padding:6px 8px;font-size:11px}#findLiverDialog{scroll-padding-top:72px}}
+
+/* Keep range shortcuts available while the cheer choices scroll. */
+.cheer-picker:popover-open{display:flex;flex-direction:column;overflow:hidden}
+.cheer-picker-context{flex:none;background:var(--surface,#fff)}
+#cheerChoices{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){
+ /* Avoid automatic input zoom on iOS and make undo easy to tap. */
+ header .header-meta .month-label input{font-size:16px;width:160px;max-width:160px}
+ .bottom-menus .cheer-undo-bar{flex-wrap:wrap}
+ .bottom-menus #cheerUndoMessage{flex-basis:100%;font-size:11px}
+ .bottom-menus .cheer-undo-bar button{min-height:44px;font-size:12px;padding:7px 12px}
+ .cheer-picker-heading button,.cheer-picker-jumps button{min-height:44px}
+ /* Landscape and an open keyboard should leave room below the dialog title. */
+ .short-viewport #coinDialog.pair-actual #pairNavigation{position:static}
+}
+@media(min-width:600px) and (max-width:1000px) and (max-height:500px){
+ header{grid-template-columns:auto minmax(0,1fr) auto;gap:6px 12px;padding:6px 10px}
+ header .title-block{grid-column:1;grid-row:1}
+ header .header-meta{grid-column:2;grid-row:1;justify-content:center;gap:10px}
+ header .header-meta #currentDateTime{flex-direction:column;align-items:flex-start;gap:1px}
+ header .header-meta .month-label{margin-left:0;gap:4px}
+ header .header-meta .month-label input{width:150px;max-width:150px}
+ header .header-actions{grid-column:3;grid-row:1}
+ .bottom-menus .table-bar{display:flex;flex-wrap:wrap;gap:4px}
+ .bottom-menus .month-view-switch{width:auto;flex:1;min-width:190px}
+ .bottom-menus .primary-tools{padding-top:0;flex:none}
+ .bottom-menus .cheer-undo-bar,.bottom-menus .time-view-note{flex-basis:100%;width:100%}
+ .bottom-menus #cheerUndoMessage{flex-basis:auto}
+}

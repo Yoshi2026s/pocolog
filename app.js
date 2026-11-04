@@ -183,7 +183,7 @@ function cheerSelect(value,label,onchange){
   const heading=document.createElement('div');heading.className='cheer-picker-heading';const title=document.createElement('span');title.textContent=label;
   const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('aria-label','エール選択を閉じる');close.onclick=()=>closeCheerPicker(true);heading.append(title,close);
   const jumps=document.createElement('div');jumps.className='cheer-picker-jumps';jumps.setAttribute('role','group');jumps.setAttribute('aria-label','数字の範囲へ移動');
-  for(const start of [1,13,25,37]){const jump=document.createElement('button');jump.type='button';jump.textContent=`${start}〜${start+11}`;jump.onclick=()=>{const option=options[start+1];option.focus({preventScroll:true});cheerPicker.scrollTop+=option.getBoundingClientRect().top-context.getBoundingClientRect().bottom-4;};jumps.append(jump);}
+  for(const start of [1,13,25,37]){const jump=document.createElement('button');jump.type='button';jump.textContent=`${start}〜${start+11}`;jump.onclick=()=>{const option=options[start+1];option.focus({preventScroll:true});list.scrollTop+=option.getBoundingClientRect().top-list.getBoundingClientRect().top;};jumps.append(jump);}
   context.append(heading,jumps);const list=document.createElement('div');list.id='cheerChoices';list.setAttribute('role','listbox');list.setAttribute('aria-label',label+'のエール数');cheerPicker.append(context,list);
   const choices=['','〇',...Array.from({length:48},(_,i)=>String(i+1))];
   const options=choices.map((choice,index)=>{
@@ -203,7 +203,7 @@ function cheerSelect(value,label,onchange){
    if(event.key==='Tab')closeCheerPicker(true);
   };
   positionCheerPicker();
-  trigger.setAttribute('aria-expanded','true');cheerPicker.showPopover();cheerPicker.scrollTop=0;options[0].focus({preventScroll:true});
+  trigger.setAttribute('aria-expanded','true');cheerPicker.showPopover();list.scrollTop=0;options[0].focus({preventScroll:true});
  }
  trigger.onclick=open;
  trigger.onkeydown=event=>{if(['ArrowDown','ArrowUp','Home'].includes(event.key)){event.preventDefault();open();}};
@@ -475,7 +475,7 @@ let lastActualAction=null;
 function focusActualEditor(){
  if(!isActualContext())return;
  const dialog=$('coinDialog'),editor=$('liverActualEditor'),header=dialog.querySelector('.dialog-header');
- const stickyNav=currentEntity.kind==='pair'&&window.matchMedia('(max-width:700px), (max-height:500px) and (max-width:1000px)').matches?$('pairNavigation').getBoundingClientRect().height+8:0;
+ const stickyNav=currentEntity.kind==='pair'&&getComputedStyle($('pairNavigation')).position==='sticky'?$('pairNavigation').getBoundingClientRect().height+8:0;
  dialog.scrollTop+=editor.getBoundingClientRect().top-dialog.getBoundingClientRect().top-header.getBoundingClientRect().height-stickyNav-12;
  editor.tabIndex=-1;editor.focus({preventScroll:true});
 }
@@ -822,6 +822,7 @@ function fitTableViewport(){
 let tableViewportTimer;
 function updateOverlayViewport(){
  const view=visibleViewport();
+ document.documentElement.classList.toggle('short-viewport',view.height<420);
  for(const [name,value] of Object.entries(view))document.documentElement.style.setProperty('--visible-'+name,value+'px');
  if(document.querySelector('.table-tools[open]'))positionToolsMenu();
 }
