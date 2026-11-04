@@ -225,3 +225,9 @@ header .header-meta .month-label{margin-left:auto}#backToAllAccounts{background:
 header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:11px;white-space:nowrap}
 #grid tbody tr>td[data-goal-met=true]{background:#def3fc}#grid td[data-goal-met=true] button.cheer-field{color:#235770;font-weight:700}
 @media(max-width:380px){header .header-meta .month-label{gap:4px}.month-caption{font-size:10px}header .header-meta .month-label input{width:126px;max-width:126px}}
+
+/* A persistent completion badge is independent of the optional row coloring. */
+#grid tbody td.name button.name-trigger{display:flex;align-items:center;gap:3px}.liver-name-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.achievement-badge{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:14px;height:15px;padding:0 2px;border-radius:4px;background:#286680;color:#fff;font-size:9px;font-weight:700;line-height:1;letter-spacing:0}.achievement-badge[hidden]{display:none}#grid tbody tr>td.name[data-all-goals-met=true]{background:#def3fc}#grid tbody td.name[data-all-goals-met=true] .name-trigger{color:#235770}
+#tablePanel.account-focused:not(.roomy-view) #grid tbody td.name button.name-trigger{display:flex}.account-focused .achievement-badge{height:13px;min-width:13px;font-size:8px}
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){#grid tbody td.name button.name-trigger{gap:1px}.achievement-badge{height:12px;min-width:11px;padding:0 1px;font-size:8px;border-radius:3px}}
+#tablePanel #grid tbody td.name button.name-trigger{display:flex}

@@ -109,7 +109,14 @@ function applyRowHighlights(date=releaseTodayDate){
   if(releaseMatch)tr.dataset.releaseMatch=release;else delete tr.dataset.releaseMatch;
   if(achievementMatch)tr.dataset.achievementMatch=achievement.state;else delete tr.dataset.achievementMatch;
   const description=[releaseMatch?releaseLabels[release]:'',achievementMatch?`${achievement.state==='met'?'目標達成済':'目標未達成'}（${achievement.completed}/${achievement.targets}アカウント達成）`:''].filter(Boolean).join('、');
-  const name=tr.querySelector('td.name .name-trigger');if(name){if(description)name.setAttribute('aria-description',description);else name.removeAttribute('aria-description');}
+  const name=tr.querySelector('td.name .name-trigger');if(name){
+   let badge=name.querySelector('.achievement-badge');
+   if(!badge){const label=document.createElement('span');label.className='liver-name-text';label.textContent=row.name||'（未設定）';badge=document.createElement('span');badge.className='achievement-badge';badge.textContent='済';badge.title='数値目標のある全アカウントで達成済';badge.setAttribute('aria-hidden','true');name.replaceChildren(label,badge);}
+   const met=achievement.state==='met';badge.hidden=!met;
+   if(met)name.closest('td').dataset.allGoalsMet='true';else delete name.closest('td').dataset.allGoalsMet;
+   const fullDescription=[description,met&&!achievementMatch?'数値目標のある全アカウントで目標達成済':''].filter(Boolean).join('、');
+   if(fullDescription)name.setAttribute('aria-description',fullDescription);else name.removeAttribute('aria-description');
+  }
   const button=tr.querySelector('.release-col button');if(button){button.title=PocoRows.formatRelease(row.releaseDate,book.currentMonth)+(release?'（'+releaseLabels[release]+'）':'');if(release==='today')button.setAttribute('aria-description','本日が解禁日です（日本時間）');else button.removeAttribute('aria-description');}
  });
  for(const button of document.querySelectorAll('[data-release-highlight],[data-achievement-highlight]')){const group=button.dataset.releaseHighlight!==undefined?'release':'achievement',value=button.dataset.releaseHighlight??button.dataset.achievementHighlight;button.setAttribute('aria-pressed',String(rowHighlights[group]===value));const count=button.querySelector('.highlight-count');if(count)count.textContent=counts[value];}
