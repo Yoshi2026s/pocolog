@@ -243,7 +243,7 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 
 /* Keep range shortcuts available while the cheer choices scroll. */
 .cheer-picker:popover-open{display:flex;flex-direction:column;overflow:hidden}
-.cheer-picker-context{flex:none;background:var(--surface,#fff)}
+.cheer-picker-context{flex:none;background:var(--surface,#fff);color:var(--ink,#223b40)}
 #cheerChoices{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){
@@ -289,3 +289,7 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 /* Keep the same undo action within reach of the fields it restores. */
 #undoActualAction{min-height:44px;background:#e6f2e9;border-color:#a3c5af;color:#235b40;margin:8px 0}
 #undoActualAction[hidden]{display:none}
+
+.cheer-picker-details{flex:none;width:100%;min-height:44px;padding:7px;font-size:12px;margin-top:4px;background:#e8f1e7;color:#194f47}
+.pair-cheer-list-label{display:block;font-size:13px;margin:12px 0}
+.pair-cheer-list-label select{display:block;width:100%;min-height:48px;font-size:18px;margin-top:5px}
