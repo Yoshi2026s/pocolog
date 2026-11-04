@@ -42,14 +42,14 @@ function backupLocal() {
   archiveButton.hidden = false;
 }
 function apply(record) {
-  if (!record) { retainSyncState(0, !state.dirty); message('共有の記録はまだありません。「共有先に保存」で現在の表を登録できます。'); return; }
+  if (!record) { retainSyncState(0, !state.dirty); message('共有の記録はまだありません。「保存」で現在の表を登録できます。'); return; }
   const next = JSON.parse(record.payload);
   if (!api.validBook(next)) throw Error('共有データの形式を確認できません。');
   backupLocal();
   const migrated=api.setBook(next);
   if(migrated){state.edit();localStorage.setItem(pendingKey,'1');}
   retainSyncState(record.revision, !migrated);
-  message(migrated?'不足するアカウントを追加しました。「共有先に保存」で反映できます。':'共有先と同期済み');
+  message(migrated?'不足するアカウントを追加しました。「保存」で反映できます。':'共有先と同期済み');
 }
 function read(snapshot) {
   if (!snapshot.exists()) return null;
@@ -61,7 +61,7 @@ function read(snapshot) {
 }
 window.addEventListener('pocolog:edit', () => {
   state.edit();
-  if (connected) message('未共有の変更があります。「共有先に保存」を押してください。');
+  if (connected) message('未共有の変更があります。「保存」を押してください。');
 });
 saveButton.onclick = async () => {
   if (!connected || busy) return;
@@ -72,7 +72,7 @@ saveButton.onclick = async () => {
     const clean = await state.save(payload, (expected, body) => runTransaction(ref.firestore, async tx => {
       const snapshot = await tx.get(ref);
       const actual = snapshot.exists() ? snapshot.data().revision : 0;
-      if (actual !== expected) throw Error('他の人が更新しました。バックアップを保存し、「共有の最新版を読込」で確認してください。');
+      if (actual !== expected) throw Error('他の人が更新しました。バックアップを保存し、「読込」で確認してください。');
       const revision = actual + 1;
       tx.set(ref, { revision, payload: body, updatedAt: serverTimestamp() });
       return revision;
@@ -130,7 +130,7 @@ async function start() {
         const record = read(snapshot);
         if (state.receive(record)) apply(record);
         else if ((record?.revision ?? 0) !== state.revision) message('共有先に更新があります。未共有の入力を確認してから最新版を読み込んでください。');
-        else message('未共有の入力を復元しました。「共有先に保存」で反映できます。');
+        else message('未共有の入力を復元しました。「保存」で反映できます。');
         connected = true; api.setEditing(true); buttons();
       } catch (error) { connected = false; api.setEditing(true); buttons(); message(error.message); }
     }, error => {
