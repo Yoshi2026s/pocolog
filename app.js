@@ -141,7 +141,7 @@ const fmt=n=>n.toLocaleString('ja-JP',{maximumFractionDigits:10});
 function save(edited=true){let stored=false;try{localStorage.setItem(KEY,JSON.stringify(book));if(edited)localStorage.setItem('pocolog.pending.v1','1');$('status').textContent='このブラウザに保存済み';stored=true;}catch{$('status').textContent='保存できません。バックアップを保存してください。';}if(edited)window.dispatchEvent(new Event('pocolog:edit'));return stored;}
 function input(value,label,onchange){const el=document.createElement('input');el.value=value;el.setAttribute('aria-label',label);el.addEventListener('input',()=>{onchange(el.value);save();stats();});return el;}
 function cell(row,tag='td',cls=''){const el=document.createElement(tag);el.className=cls;row.append(el);return el;}
-const cheerPicker=document.createElement('div');cheerPicker.id='cheerPicker';cheerPicker.className='cheer-picker';cheerPicker.setAttribute('popover','auto');cheerPicker.setAttribute('role','listbox');cheerPicker.setAttribute('aria-label','エール数を選択');document.body.append(cheerPicker);
+const cheerPicker=document.createElement('div');cheerPicker.id='cheerPicker';cheerPicker.className='cheer-picker';cheerPicker.setAttribute('popover','auto');cheerPicker.setAttribute('role','group');cheerPicker.setAttribute('aria-label','エール数を選択');document.body.append(cheerPicker);
 let activeCheer=null;
 function clearCheerHighlight(){document.querySelectorAll('#grid .active-cheer-row,#grid .active-cheer-account').forEach(el=>el.classList.remove('active-cheer-row','active-cheer-account'));}
 function highlightCheer(trigger){
@@ -161,7 +161,7 @@ function visibleViewport(){
 function positionCheerPicker(){
  if(!activeCheer)return;
  const rect=activeCheer.getBoundingClientRect(),view=visibleViewport();
- const maxHeight=Math.min(300,view.height-16),width=Math.min(180,view.width-16);
+ const maxHeight=Math.min(300,view.height-16),width=Math.min(220,view.width-16);
  cheerPicker.style.width=width+'px';cheerPicker.style.maxHeight=maxHeight+'px';
  cheerPicker.style.left=Math.max(view.left+8,Math.min(rect.left,view.left+view.width-width-8))+'px';
  const below=view.top+view.height-rect.bottom-8,above=rect.top-view.top-8;
@@ -173,19 +173,24 @@ window.visualViewport?.addEventListener('scroll',positionCheerPicker);
 window.addEventListener('resize',positionCheerPicker);
 window.addEventListener('scroll',event=>{if(event.target!==cheerPicker&&!cheerPicker.contains(event.target))positionCheerPicker();},true);
 function cheerSelect(value,label,onchange){
- const trigger=document.createElement('button');trigger.type='button';trigger.className='cheer-field';trigger.setAttribute('role','combobox');trigger.setAttribute('aria-label',label);trigger.setAttribute('aria-controls','cheerPicker');trigger.setAttribute('aria-haspopup','listbox');trigger.setAttribute('aria-expanded','false');
+ const trigger=document.createElement('button');trigger.type='button';trigger.className='cheer-field';trigger.setAttribute('role','combobox');trigger.setAttribute('aria-label',label);trigger.setAttribute('aria-controls','cheerChoices');trigger.setAttribute('aria-haspopup','listbox');trigger.setAttribute('aria-expanded','false');
  trigger.textContent=/^[○〇◯]$/.test(value.trim())?'〇':value;
  function open(){
   if(trigger.disabled)return;
   if(activeCheer===trigger){closeCheerPicker(true);return;}
   closeCheerPicker();activeCheer=trigger;cheerPicker.replaceChildren();highlightCheer(trigger);
-  const context=document.createElement('div');context.className='cheer-picker-context';context.textContent=label;cheerPicker.append(context);
+  const context=document.createElement('div');context.className='cheer-picker-context';
+  const heading=document.createElement('div');heading.className='cheer-picker-heading';const title=document.createElement('span');title.textContent=label;
+  const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('aria-label','エール選択を閉じる');close.onclick=()=>closeCheerPicker(true);heading.append(title,close);
+  const jumps=document.createElement('div');jumps.className='cheer-picker-jumps';jumps.setAttribute('role','group');jumps.setAttribute('aria-label','数字の範囲へ移動');
+  for(const start of [1,13,25,37]){const jump=document.createElement('button');jump.type='button';jump.textContent=`${start}〜${start+11}`;jump.onclick=()=>{const option=options[start+1];option.focus({preventScroll:true});cheerPicker.scrollTop+=option.getBoundingClientRect().top-context.getBoundingClientRect().bottom-4;};jumps.append(jump);}
+  context.append(heading,jumps);const list=document.createElement('div');list.id='cheerChoices';list.setAttribute('role','listbox');list.setAttribute('aria-label',label+'のエール数');cheerPicker.append(context,list);
   const choices=['','〇',...Array.from({length:48},(_,i)=>String(i+1))];
   const options=choices.map((choice,index)=>{
    const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===0));option.tabIndex=-1;option.textContent=choice;if(choice==='')option.setAttribute('aria-label','空欄');
    option.onfocus=()=>options.forEach(item=>item.setAttribute('aria-selected',String(item===option)));
    option.onclick=()=>{trigger.textContent=choice;onchange(choice);save();stats();closeCheerPicker(true);};
-   cheerPicker.append(option);return option;
+   list.append(option);return option;
   });
   cheerPicker.onkeydown=event=>{
    const index=options.indexOf(document.activeElement);let next;
@@ -377,19 +382,21 @@ function showActualGroup(title,label,entries,legacyIndex=null){
  $('openLegacyLiverActual').hidden=legacyIndex===null||!Object.keys(data.rows[legacyIndex]?.actuals||{}).length;
  $('openLegacyLiverActual').onclick=()=>{$('actualAccountDialog').close();showCoinDialog('liver',legacyIndex);};
  let sum=0,known=0;const table=$('actualAccountTable');table.replaceChildren();const head=table.createTHead().insertRow();for(const text of [label,'獲得エール（K）','日数・時間'])cell(head,'th').textContent=text;
- const body=table.createTBody();for(const entry of entries){const {row,index,name}=entry,pair=PocoCalendar.pairDetails(data,row,index),total=PocoCalendar.actualTotals(pair),tr=body.insertRow(),button=document.createElement('button');button.type='button';button.textContent=name;button.onclick=()=>{$('actualAccountDialog').close();showPairActual(row,index);};cell(tr).append(button);cell(tr).textContent=pair.cheerK===null?'未記録':fmt(pair.cheerK);cell(tr).textContent=total.records?`${total.days}日 ／ ${total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'時間未記録'}`:'未記録';if(pair.cheerK!==null){sum+=pair.cheerK;known++;}}
+ const body=table.createTBody();for(const entry of entries){const {row,index,name}=entry,pair=PocoCalendar.pairDetails(data,row,index),total=PocoCalendar.actualTotals(pair),tr=body.insertRow(),button=document.createElement('button');button.type='button';button.textContent=name;button.onclick=()=>{const scroll=$('actualAccountDialog').scrollTop;$('actualAccountDialog').close();showPairActual(row,index,{title,label,entries,legacyIndex,scroll});};cell(tr).append(button);cell(tr).textContent=pair.cheerK===null?'未記録':fmt(pair.cheerK);cell(tr).textContent=total.records?`${total.days}日 ／ ${total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'時間未記録'}`:'未記録';if(pair.cheerK!==null){sum+=pair.cheerK;known++;}}
  $('actualAccountTotal').textContent=known?fmt(sum):'未記録';updateOverlayViewport();$('actualAccountDialog').showModal();$('actualAccountDialog').scrollTop=0;
 }
 function showActualAccount(index){showActualGroup(`${data.columns[index]}の獲得実績`,'ライバー',data.rows.map(row=>({row,index,name:row.name})));}
 function showActualLiver(index){const row=data.rows[index];showActualGroup(`${row.name}のアカウント別実績`,'アカウント',data.columns.map((name,col)=>({row,index:col,name})),index);}
 $('actualAccountClose').onclick=()=>$('actualAccountDialog').close();
-function showPairActual(row,index){
+let pairReturnGroup=null,pairOpeningCheer=null;
+function showPairActual(row,index,returnGroup=null){
+ pairReturnGroup=returnGroup;$('backToActualGroup').hidden=!returnGroup;
  const account=data.columns[index],table=data;
  $('coinDialog').classList.remove('actual-account');$('coinDialog').classList.add('pair-actual');$('pairCheerEditor').hidden=false;
  $('coinDialogTitle').textContent=`${row.name} × ${account}`;$('coinDialogMonth').textContent=`${book.currentMonth} ／ アカウント別実績`;
  openEntityPlanner({kind:'pair',row,index,month:book.currentMonth,table,isCurrent:()=>table===data&&data.rows.includes(row)&&data.columns[index]===account});
  $('previousPairLiver').disabled=data.rows.indexOf(row)===0;$('nextPairLiver').disabled=data.rows.indexOf(row)===data.rows.length-1;$('pairPosition').textContent=`${data.rows.indexOf(row)+1} / ${data.rows.length}`;
- updatePairGoalProgress();$('pairCurrentCheer').value=entityDetails().cheerK??'';$('pairCheerError').textContent='';updateOverlayViewport();$('coinDialog').showModal();$('coinDialog').scrollTop=0;
+ updatePairGoalProgress();pairOpeningCheer=entityDetails().cheerK??null;$('undoPairCheer').hidden=true;$('clearPairCheer').disabled=pairOpeningCheer===null;$('pairCurrentCheer').value=pairOpeningCheer??'';$('pairCheerError').textContent='';updateOverlayViewport();$('coinDialog').showModal();$('coinDialog').scrollTop=0;
 }
 function updatePairGoalProgress(){
  if(currentEntity?.kind!=='pair'||!currentEntity.isCurrent())return;
@@ -402,14 +409,26 @@ function updatePairGoalProgress(){
 function movePairLiver(offset){
  if(currentEntity?.kind!=='pair'||!currentEntity.isCurrent())return;
  const index=data.rows.indexOf(currentEntity.row)+offset,row=data.rows[index];if(!row)return;
- const account=currentEntity.index,date=currentEntity.date;$('coinDialog').close();showPairActual(row,account);if(date)selectEntityDay(date);
+ const account=currentEntity.index,date=currentEntity.date,returnGroup=pairReturnGroup;$('coinDialog').close();showPairActual(row,account,returnGroup);if(date)selectEntityDay(date);
  if(monthView==='time')focusActualEditor();else $('pairCurrentCheer').focus({preventScroll:true});
 }
 $('previousPairLiver').onclick=()=>movePairLiver(-1);$('nextPairLiver').onclick=()=>movePairLiver(1);
 $('pairCurrentCheer').addEventListener('input',()=>{
- if(currentEntity?.kind!=='pair')return;const input=$('pairCurrentCheer');if(!input.validity.valid){$('pairCheerError').textContent='0以上の獲得エールを入力してください。';return;}
- const entity=entityDetails(true);if(!entity)return;entity.cheerK=input.value===''?null:Number(input.value);$('pairCheerError').textContent='';updateActualTotals();stats();plannerSaved('現時点の獲得エールを保存しました。');
+ if(currentEntity?.kind!=='pair')return;const input=$('pairCurrentCheer');$('undoPairCheer').hidden=input.value===String(pairOpeningCheer??'');$('clearPairCheer').disabled=input.value==='';if(!input.validity.valid){$('pairCheerError').textContent='0以上の獲得エールを入力してください。';return;}
+ const entity=entityDetails(true);if(!entity)return;entity.cheerK=input.value===''?null:Number(input.value);$('undoPairCheer').hidden=entity.cheerK===pairOpeningCheer;$('clearPairCheer').disabled=entity.cheerK===null;$('pairCheerError').textContent='';updateActualTotals();stats();plannerSaved('現時点の獲得エールを保存しました。');
 });
+$('backToActualGroup').onclick=()=>{
+ if(!pairReturnGroup||!currentEntity?.isCurrent())return;
+ const group=pairReturnGroup;$('coinDialog').close();showActualGroup(group.title,group.label,group.entries,group.legacyIndex);$('actualAccountDialog').scrollTop=group.scroll;
+};
+function setPairCheer(value){
+ if(currentEntity?.kind!=='pair'||!currentEntity.isCurrent())return;
+ $('pairCurrentCheer').value=value??'';$('pairCurrentCheer').dispatchEvent(new Event('input',{bubbles:true}));
+}
+$('undoPairCheer').onclick=()=>setPairCheer(pairOpeningCheer);
+$('clearPairCheer').onclick=()=>setPairCheer(null);
+const entityHeaderObserver=new ResizeObserver(()=>{const height=$('coinDialog').querySelector('.dialog-header').getBoundingClientRect().height;if(height>0)$('coinDialog').style.setProperty('--entity-header-height',height+'px');});
+entityHeaderObserver.observe($('coinDialog').querySelector('.dialog-header'));
 function renderEntityCalendar(){
  const entity=entityDetails();if(!entity)return;
  const month=currentEntity.month,info=PocoCalendar.monthInfo(month);if(!info)return;
@@ -445,7 +464,8 @@ let lastActualAction=null;
 function focusActualEditor(){
  if(!isActualContext())return;
  const dialog=$('coinDialog'),editor=$('liverActualEditor'),header=dialog.querySelector('.dialog-header');
- dialog.scrollTop+=editor.getBoundingClientRect().top-dialog.getBoundingClientRect().top-header.getBoundingClientRect().height-12;
+ const stickyNav=currentEntity.kind==='pair'&&window.matchMedia('(max-width:700px), (max-height:500px) and (max-width:1000px)').matches?$('pairNavigation').getBoundingClientRect().height+8:0;
+ dialog.scrollTop+=editor.getBoundingClientRect().top-dialog.getBoundingClientRect().top-header.getBoundingClientRect().height-stickyNav-12;
  editor.tabIndex=-1;editor.focus({preventScroll:true});
 }
 $('goActualEntry').onclick=focusActualEditor;
