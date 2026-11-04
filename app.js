@@ -97,6 +97,12 @@ function applyRowHighlights(date=releaseTodayDate){
  data.rows.forEach((row,index)=>{
   const tr=rows[index];if(!tr)return;
   const release=PocoRows.releaseState(row.releaseDate,book.currentMonth,date),achievement=PocoRows.achievementState(row);
+  row.values.forEach((value,account)=>{
+   const td=tr.cells[account+3];if(!td)return;
+   const actual=row.pairActuals?.[account]?.cheerK,met=monthView!=='time'&&PocoRows.targetState(value,actual)==='met';
+   if(met)td.dataset.goalMet='true';else delete td.dataset.goalMet;
+   const button=td.querySelector('button');if(button&&monthView!=='time'){if(met)button.setAttribute('aria-description',`目標 ${value} K 達成済（実績 ${actual} K）`);else button.removeAttribute('aria-description');}
+  });
   if(release)counts[release]++;if(achievement.state)counts[achievement.state]++;
   const releaseMatch=release&&rowHighlights.release===release,achievementMatch=achievement.state&&rowHighlights.achievement===achievement.state;
   tr.classList.toggle('release-today',Boolean(releaseMatch&&release==='today'));

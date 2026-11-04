@@ -68,3 +68,14 @@ test('achievement requires every positive numeric account goal and never substit
  assert.deepEqual(achievementState({values:['2','5'],pairActuals:[{cheerK:20},null],actuals:{'2026-11-03':{cheerK:100}}}),{state:'unmet',targets:2,completed:1});
  assert.equal(achievementState({values:['〇','','0','-1','Infinity']}).state,null);assert.equal(achievementState({values:['0.5'],pairActuals:[{cheerK:0.5}]}).state,'met');assert.equal(achievementState({values:['1'],pairActuals:[{cheerK:0}]}).state,'unmet');
 });
+
+test('individual cheer targets require positive numeric goals and account-specific recorded actuals', () => {
+  assert.equal(globalThis.PocoRows.targetState('2',2),'met');
+  assert.equal(globalThis.PocoRows.targetState('2',3),'met');
+  assert.equal(globalThis.PocoRows.targetState('2',1),'unmet');
+  assert.equal(globalThis.PocoRows.targetState('2',null),'unmet');
+  assert.equal(globalThis.PocoRows.targetState('2',0),'unmet');
+  assert.equal(globalThis.PocoRows.targetState('+0.5',0.5),'met');
+  for(const value of ['', '〇', '0', '-1', 'NaN', 'Infinity'])assert.equal(globalThis.PocoRows.targetState(value,48),null);
+  assert.equal(globalThis.PocoRows.targetState('2',Infinity),'unmet');
+});

@@ -59,15 +59,18 @@
     const date=`${month}-${String(day).padStart(2,'0')}`;
     return date===today?'today':date<today?'after':'before';
   }
+  function targetState(value,actual){
+    const text=String(value??'').trim();if(!/^[+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text))return null;
+    const target=Number(text);if(!Number.isFinite(target)||target<=0)return null;
+    return typeof actual==='number'&&Number.isFinite(actual)&&actual>=target?'met':'unmet';
+  }
   function achievementState(row){
     let targets=0,completed=0;
     (row.values||[]).forEach((value,index)=>{
-      const text=String(value).trim();if(!/^[+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text))return;
-      const target=Number(text);if(!Number.isFinite(target)||target<=0)return;targets++;
-      const actual=row.pairActuals?.[index]?.cheerK;
-      if(typeof actual==='number'&&Number.isFinite(actual)&&actual>=target)completed++;
+      const state=targetState(value,row.pairActuals?.[index]?.cheerK);if(!state)return;
+      targets++;if(state==='met')completed++;
     });
     return {state:targets===0?null:completed===targets?'met':'unmet',targets,completed};
   }
-  globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, formatRelease, addExtraAccounts, releaseState, achievementState, sortRows, moveRow });
+  globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, formatRelease, addExtraAccounts, releaseState, targetState, achievementState, sortRows, moveRow });
 })();
