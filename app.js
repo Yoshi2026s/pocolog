@@ -802,6 +802,8 @@ $('addRow').onclick=()=>{data.rows.push({name:'新しいライバー',memo:'',va
 $('addCol').onclick=()=>{if(data.columns.length>=100)return alert('アカウントは100列までです。');focusedAccount=null;data.columns.push('新しいアカウント');if(data.accountDetails)data.accountDetails.push({memo:'',schedule:{}});data.rows.forEach(r=>{r.values.push('');if(r.pairActuals)r.pairActuals.push(null);});save();render();revealGridColumn(data.columns.length-1);markAddedName($('grid').tHead.rows[0].cells[data.columns.length+2].querySelector('.name-trigger'),'アカウントを追加しました。名前を押すと編集できます。');};
 $('metric').onchange=stats;
 $('tableMode').onclick=()=>{const expanded=$('tablePanel').classList.toggle('table-detail');$('tableMode').setAttribute('aria-pressed',String(expanded));$('tableMode').textContent=expanded?'一覧に戻る':'編集・詳細';toolsMenu.open=false;refreshTableViewport();};
+$('openSummary').onclick=()=>{updateOverlayViewport();$('summaryDialog').showModal();$('summaryDialog').scrollTop=0;};
+$('closeSummary').onclick=()=>$('summaryDialog').close();
 $('refresh').onclick=()=>{try{localStorage.setItem(KEY,JSON.stringify(book));location.reload();}catch{$('status').textContent='保存できないため更新を中止しました。バックアップを保存してください。';}};
 function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('download').onclick=()=>download(JSON.stringify(book,null,2),'application/json','pocolog-backup.json');

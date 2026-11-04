@@ -191,3 +191,7 @@ header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 12px;align-
 
 header>.month-label{grid-column:1/-1;justify-content:flex-start;color:#d5e7db;margin:0;font-size:12px}header>.month-label input{min-height:48px;padding:5px 8px;font-size:14px;max-width:185px}.header-actions #refresh{background:#eef4eb;color:#194f47}
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){.header-actions button{min-width:48px;padding:7px 8px}header>.month-label input{font-size:16px;min-height:48px;max-width:180px}}
+
+.header-actions #openSummary{background:#eef4eb;color:#194f47}#summaryDialog{width:min(1000px,calc(100vw - 24px));max-height:calc(100dvh - 24px);margin:auto}#summaryDialog .dialog-header{position:sticky;top:-15px;z-index:5;background:var(--surface);padding:10px 0;border-bottom:1px solid var(--line)}#summaryDialog .dialog-header h2{margin:0}#summaryDialog .table-wrap{max-height:50dvh;overflow:auto}
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){#summaryDialog{width:calc(var(--visible-width,100vw) - 20px);max-height:calc(var(--visible-height,100dvh) - 24px);margin:0}#summaryDialog .dialog-header{top:-12px}#summaryDialog .dialog-header button{min-height:48px}}
+@media(max-width:380px){header .brand{grid-column:1/-1}.header-actions{grid-column:1/-1;justify-self:end}}
