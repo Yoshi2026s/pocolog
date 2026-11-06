@@ -1,1 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none"><rect width="36" height="36" rx="10" fill="#203d43"/><path d="M10 10.5h11a5 5 0 0 1 5 5v10H15a5 5 0 0 1-5-5v-10Z" stroke="#bfe5cf" stroke-width="2"/><path d="M15 10.5v15M19 15.5h3M19 20h3" stroke="#bfe5cf" stroke-width="2" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <title>ポコログの記録帳</title>
+  <rect width="512" height="512" rx="112" fill="#203d43"/>
+  <rect x="120" y="92" width="284" height="350" rx="28" fill="#132e34"/>
+  <rect x="108" y="76" width="284" height="352" rx="26" fill="#bfe5cf"/>
+  <rect x="132" y="88" width="252" height="328" rx="18" fill="#fff9e9"/>
+  <path d="M157 90v324" stroke="#e7a19a" stroke-width="5"/>
+  <g stroke="#203d43" stroke-width="12" stroke-linecap="round">
+    <path d="M103 122h35M103 178h35M103 234h35M103 290h35M103 346h35M103 394h35"/>
+  </g>
+  <rect x="181" y="119" width="158" height="35" rx="9" fill="#2c7161"/>
+  <path d="M201 137h118" stroke="#fff9e9" stroke-width="7" stroke-linecap="round"/>
+  <g stroke="#abc6bc" stroke-width="5" stroke-linecap="round">
+    <path d="M224 200h108M224 254h108M224 308h86M182 363h94"/>
+  </g>
+  <g stroke="#2c7161" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m181 195 9 9 17-21M181 249l9 9 17-21"/>
+    <rect x="180" y="294" width="23" height="23" rx="4"/>
+  </g>
+  <g transform="rotate(35 356 321)">
+    <rect x="340" y="219" width="33" height="168" rx="7" fill="#f6c360" stroke="#203d43" stroke-width="5"/>
+    <path d="M342 249h29M350 264v101" stroke="#b67836" stroke-width="5"/>
+    <path d="m341 385 15 32 16-32" fill="#f4d9af" stroke="#203d43" stroke-width="5" stroke-linejoin="round"/>
+    <path d="m351 405 5 12 6-12" fill="#203d43"/>
+    <path d="M343 242v-14a5 5 0 0 1 5-5h17a5 5 0 0 1 5 5v14" fill="#eaa6a0"/>
+  </g>
+</svg>
