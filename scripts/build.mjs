@@ -2,8 +2,8 @@ import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { mkdir, copyFile, readFile, writeFile, rename, rm } from 'node:fs/promises';
 await rm('dist', { recursive: true, force: true });
-await mkdir('dist', { recursive: true });
-for (const file of ['index.html', 'design.css', 'favicon.svg', 'app.js', 'coins.js', 'rows.js', 'calendar.js', 'firebase-config.js']) {
+await mkdir('dist/icons', { recursive: true });
+for (const file of ['index.html', 'manifest.webmanifest', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'design.css', 'favicon.svg', 'app.js', 'coins.js', 'rows.js', 'calendar.js', 'firebase-config.js']) {
   await copyFile(file, `dist/${file}`);
 }
 await build({ entryPoints: ['shared.js'], outfile: 'dist/shared.js', bundle: true, format: 'esm', minify: true, target: ['es2022'] });
