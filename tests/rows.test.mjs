@@ -79,3 +79,20 @@ test('individual cheer targets require positive numeric goals and account-specif
   for(const value of ['', '〇', '0', '-1', 'NaN', 'Infinity'])assert.equal(globalThis.PocoRows.targetState(value,48),null);
   assert.equal(globalThis.PocoRows.targetState('2',Infinity),'unmet');
 });
+
+test('account groups reach their targets independently after column reorder',()=>{
+ const columns=['ヨシ','もえ','寿司','こた','こじ','レオ'];
+ const row={values:['8','4','〇','2','5',''],pairActuals:[{cheerK:8},{cheerK:4},null,{cheerK:2},null,null]};
+ assert.deepEqual(PocoRows.groupAchievements(row,columns),[
+  {state:'unmet',targets:3,completed:2},{state:'met',targets:1,completed:1}
+ ]);
+ row.pairActuals[4]={cheerK:5};
+ row.pairActuals[0]={cheerK:7};
+ assert.deepEqual(PocoRows.groupAchievements(row,columns),[
+  {state:'met',targets:3,completed:3},{state:'unmet',targets:1,completed:0}
+ ]);
+ row.pairActuals[0].cheerK=8;
+ assert.deepEqual(PocoRows.groupAchievements(row,columns).map(group=>group.state),['met','met']);
+ row.values[0]='';
+ assert.deepEqual(PocoRows.groupAchievements(row,columns).map(group=>group.state),['met',null]);
+});
