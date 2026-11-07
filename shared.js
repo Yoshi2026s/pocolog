@@ -159,7 +159,7 @@ async function start() {
         const first = firstServerSnapshot;
         firstServerSnapshot = false;
         serverConfirmed = true;
-        if (first && record && state.dirty && !local.edited && state.generation === startupGeneration) {
+        if (first && record && state.dirty && record.revision !== state.revision && !local.edited && state.generation === startupGeneration) {
           // Edits made after opening, including before this module loads, must survive startup.
           state.receive(record);
           const migrated = apply(record, () => {
@@ -179,7 +179,7 @@ async function start() {
         } else if (!record) {
           state.receive(null);appliedRecord=null;retainSyncState(0,true);
           message('共有の記録はまだありません。「保存」で現在の表を登録できます。');
-        } else if (sameRecord(record, appliedRecord) || (first && record.payload === api.getPayload())) {
+        } else if (record.payload === appliedRecord?.payload || (first && record.payload === api.getPayload())) {
           appliedRecord=record;state.receive(record);retainSyncState(record.revision,true);
           message('共有先と同期済み',true);
         } else {

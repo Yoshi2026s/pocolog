@@ -177,7 +177,20 @@ const monthly=document.createElement('section');monthly.className='panel';monthl
 const actualSummary=document.createElement('section');actualSummary.className='panel';actualSummary.style.marginTop='12px';const actualTitle=document.createElement('h2');actualTitle.textContent='ライバー別の獲得実績';const actualWrap=document.createElement('div');actualWrap.className='table-wrap';const actualTable=document.createElement('table');actualTable.id='actualSummaryTable';actualTable.className='summary-table';actualTable.setAttribute('aria-label','記録月のライバー別獲得実績');actualWrap.append(actualTable);const pairWrap=document.createElement('div');pairWrap.className='table-wrap';const pairTable=document.createElement('table');pairTable.id='pairSummaryTable';pairTable.className='summary-table';pairWrap.append(pairTable);const legacy=document.createElement('details');legacy.className='entity-breakdown';const legacyLabel=document.createElement('summary');legacyLabel.textContent='以前のライバー単位の記録';legacy.append(legacyLabel,actualWrap);actualTitle.textContent='アカウント別の獲得実績';actualSummary.append(actualTitle,pairWrap,legacy);$('summaryContent').append(actualSummary);
 function measure(values){const counts=values.reduce((a,v)=>{const s=v.trim();if(s){a.filled++;if(/^[○〇◯]$/.test(s))a.circle++;else if(/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(s)){const n=Number(s);if(Number.isFinite(n)&&Number.isFinite(a.number+n))a.number+=n;}}return a;},{number:0,circle:0,filled:0});return {...counts,...PocoCoins.summarize(values)};}
 const fmt=new Intl.NumberFormat('ja-JP',{maximumFractionDigits:10}).format;
-function save(edited=true){if(edited)editedThisPage=true;let stored=false;try{localStorage.setItem(KEY,JSON.stringify(book));if(edited)localStorage.setItem('pocolog.pending.v1','1');$('status').textContent='このブラウザに保存済み';stored=true;}catch{$('status').textContent='保存できません。バックアップを保存してください。';}if(edited)window.dispatchEvent(new Event('pocolog:edit'));return stored;}
+let serializedBook;
+function getBookPayload(){return serializedBook??=JSON.stringify(book);}
+function save(edited=true){
+ serializedBook=undefined;
+ if(edited)editedThisPage=true;
+ let stored=false;
+ try{
+  localStorage.setItem(KEY,getBookPayload());
+  if(edited)localStorage.setItem('pocolog.pending.v1','1');
+  $('status').textContent='このブラウザに保存済み';stored=true;
+ }catch{$('status').textContent='保存できません。バックアップを保存してください。';}
+ if(edited)window.dispatchEvent(new Event('pocolog:edit'));
+ return stored;
+}
 function input(value,label,onchange){const el=document.createElement('input');el.value=value;el.setAttribute('aria-label',label);el.addEventListener('input',()=>{onchange(el.value);save();});return el;}
 function cell(row,tag='td',cls=''){const el=document.createElement(tag);el.className=cls;row.append(el);return el;}
 const cheerPicker=document.createElement('div');cheerPicker.id='cheerPicker';cheerPicker.className='cheer-picker';cheerPicker.setAttribute('popover','auto');cheerPicker.setAttribute('role','group');cheerPicker.setAttribute('aria-label','エール数を選択');document.body.append(cheerPicker);
@@ -1124,7 +1137,39 @@ $('syncInfo').onclick=()=>{updateOverlayViewport();$('syncInfoDialog').showModal
 $('closeSyncInfo').onclick=()=>$('syncInfoDialog').close();
 $('openSummary').onclick=()=>{if(summaryDirty)renderSummary();updateOverlayViewport();$('summaryDialog').showModal();$('summaryDialog').scrollTop=0;};
 $('closeSummary').onclick=()=>$('summaryDialog').close();
-$('refresh').onclick=()=>{try{const payload=JSON.stringify(book);if(localStorage.getItem(KEY)!==payload)localStorage.setItem(KEY,payload);location.reload();}catch{$('status').textContent='保存できないため更新を中止しました。バックアップを保存してください。';}};
+let refreshLabelTimer;
+$('refresh').onclick=async()=>{
+ const button=$('refresh'),current=document.querySelector('meta[name=pocolog-build]')?.content;
+ clearTimeout(refreshLabelTimer);
+ button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='確認中';
+ try{
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),5000);
+  let latest;
+  try{
+   const response=await fetch('./version.json',{cache:'no-store',signal:controller.signal});
+   if(!response.ok)throw Error('版を確認できません');
+   latest=(await response.json()).version;
+   if(!/^[a-f0-9]{16}$/.test(latest))throw Error('版を確認できません');
+  }catch{
+   button.textContent='再試行';
+   return;
+  }finally{clearTimeout(timeout);}
+  if(latest===current){
+   button.textContent='最新版';
+   return;
+  }
+  const payload=getBookPayload();
+  if(localStorage.getItem(KEY)!==payload)localStorage.setItem(KEY,payload);
+  location.reload();
+ }catch{
+  button.textContent='保存失敗';
+  $('status').textContent='保存できないため更新を中止しました。バックアップを保存してください。';
+ }finally{
+  button.disabled=false;button.removeAttribute('aria-busy');
+  refreshLabelTimer=setTimeout(()=>{button.textContent='更新';},2400);
+ }
+};
 function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('download').onclick=()=>download(JSON.stringify(book,null,2),'application/json','pocolog-backup.json');
 $('upload').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>10000000)throw Error();const next=JSON.parse(await f.text());if(!validBook(next)&&!valid(next,book.currentMonth))throw Error();if(confirm('全月の記録をバックアップの内容で置き換えますか？')){book=validBook(next)?next:{version:2,currentMonth:book.currentMonth,months:{[book.currentMonth]:next}};addMoeAccount();PocoRows.addExtraAccounts(book);addPhotoLivers();rowSort={field:null,direction:1,month:book.currentMonth};data=book.months[book.currentMonth];$('month').value=book.currentMonth;save();render();}}catch{alert('読み込めませんでした。ポコログのJSONバックアップを選択してください。');}e.target.value='';};
@@ -1135,18 +1180,25 @@ const referenceBody=reference.createTBody();PocoCoins.tiers.forEach(([level,coin
 render();
 
 function installBook(next){
- const previous=book,selected=book.currentMonth;
+ const previous=book,previousPayload=serializedBook,selected=book.currentMonth;
  const migrated=PocoRows.addExtraAccounts(next);
  if(next.months[selected])next.currentMonth=selected;
+ const reuseMonth=selected===next.currentMonth&&JSON.stringify(data)===JSON.stringify(next.months[selected]);
+ if(reuseMonth)next.months[selected]=data;
  book=next;
- if(!save(false)){book=previous;throw Error('端末に保存できません。バックアップを保存してください。');}
- data=book.months[book.currentMonth];$('month').value=book.currentMonth;
- rowSort={field:null,direction:1,month:book.currentMonth};
- render();return migrated;
+ if(!save(false)){book=previous;serializedBook=previousPayload;throw Error('端末に保存できません。バックアップを保存してください。');}
+ if(reuseMonth){
+  summaryDirty=true;
+  if($('summaryDialog').open)renderSummary();
+ }else{
+  data=book.months[book.currentMonth];$('month').value=book.currentMonth;
+  rowSort={field:null,direction:1,month:book.currentMonth};render();
+ }
+ return migrated;
 }
 window.pocolog = {
  getBook:()=>structuredClone(book),
- getPayload:()=>JSON.stringify(book),
+ getPayload:getBookPayload,
  localBookState:()=>({valid:openedWithValidBook,edited:editedThisPage}),
  setBook(next){
   if(!validBook(next))throw Error('共有データの形式を確認できません。');

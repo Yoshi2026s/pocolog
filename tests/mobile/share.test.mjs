@@ -192,3 +192,46 @@ test('loading a large month defers the hidden summary and preserves it on reopen
   assert.equal(await page.locator('#sum').textContent(), '1,200');
   assert.equal(await page.locator('#pairSummaryTable tbody tr').count(), 0);
 });
+
+for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }]) {
+  test(`app update reloads only when the release changes (${viewport.width}×${viewport.height})`, async t => {
+    const page = await openMobile(t, viewport);
+    const refresh = page.locator('#refresh');
+    const navigation = await page.evaluate(() => performance.timeOrigin);
+    await assertFits(page, refresh, 48);
+    await refresh.tap();
+    await refresh.filter({hasText:'最新版'}).waitFor();
+    assert.equal(await page.evaluate(() => performance.timeOrigin), navigation);
+    await page.locator('#addRow').tap();
+    const current = await page.evaluate(() => {
+      const payload = window.pocolog.getPayload();
+      if (payload !== localStorage.getItem('pocolog.v1')) throw Error('local save differs');
+      return payload;
+    });
+    const version = await page.locator('meta[name=pocolog-build]').getAttribute('content');
+    const changed = version === '0000000000000000' ? '1111111111111111' : '0000000000000000';
+    await page.route('**/version.json', route => route.fulfill({json:{version:changed}}));
+    await Promise.all([page.waitForEvent('framenavigated'), refresh.tap()]);
+    await page.waitForFunction(() => Boolean(window.pocolog));
+    assert.notEqual(await page.evaluate(() => performance.timeOrigin), navigation);
+    assert.equal(await page.evaluate(() => window.pocolog.getPayload()), current);
+  });
+}
+
+test('loading another month retains the current table and editable records', async t => {
+  const page = await openMobile(t, { width: 320, height: 568 });
+  const currentRow = await page.locator('#grid tbody tr').first().elementHandle();
+  await page.evaluate(() => {
+    const book = window.pocolog.getBook();
+    const month = book.currentMonth === '2090-01' ? '2090-02' : '2090-01';
+    book.months[month] = {columns:['テスト'],rows:[]};
+    window.pocolog.setBookPayload(JSON.stringify(book), () => {});
+  });
+  assert.equal(await currentRow.evaluate(node => node.isConnected), true);
+  await page.locator('#addRow').tap();
+  const result = await page.evaluate(() => {
+    const {months,currentMonth}=JSON.parse(window.pocolog.getPayload());
+    return {row:months[currentMonth].rows.at(-1).name,hasOther:Object.keys(months).length===2};
+  });
+  assert.deepEqual(result,{row:'新しいライバー',hasOther:true});
+});
