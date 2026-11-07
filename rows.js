@@ -64,13 +64,21 @@
     const target=Number(text);if(!Number.isFinite(target)||target<=0)return null;
     return typeof actual==='number'&&Number.isFinite(actual)&&actual>=target?'met':'unmet';
   }
-  function achievementState(row){
+  function achievementState(row, indices=(row.values||[]).keys()){
     let targets=0,completed=0;
-    (row.values||[]).forEach((value,index)=>{
-      const state=targetState(value,row.pairActuals?.[index]?.cheerK);if(!state)return;
+    for(const index of indices){
+      const state=targetState(row.values?.[index],row.pairActuals?.[index]?.cheerK);if(!state)continue;
       targets++;if(state==='met')completed++;
-    });
+    }
     return {state:targets===0?null:completed===targets?'met':'unmet',targets,completed};
   }
-  globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, formatRelease, addExtraAccounts, releaseState, targetState, achievementState, sortRows, moveRow });
+  function achievementGroup(name){
+    return ['こた','こじ','もえ'].includes(String(name??'').trim())?1:2;
+  }
+  function groupAchievements(row, columns){
+    const indices=[[],[]];
+    columns.forEach((name,index)=>indices[achievementGroup(name)-1].push(index));
+    return indices.map(group=>achievementState(row,group));
+  }
+  globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, formatRelease, addExtraAccounts, releaseState, targetState, achievementState, achievementGroup, groupAchievements, sortRows, moveRow });
 })();

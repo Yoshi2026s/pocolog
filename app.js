@@ -96,26 +96,50 @@ function applyRowHighlights(date=releaseTodayDate){
  const releaseLabels={after:'解禁後',today:'本日解禁',before:'解禁前'};
  data.rows.forEach((row,index)=>{
   const tr=rows[index];if(!tr)return;
-  const release=PocoRows.releaseState(row.releaseDate,book.currentMonth,date),achievement=PocoRows.achievementState(row);
+  const release=PocoRows.releaseState(row.releaseDate,book.currentMonth,date),groups=PocoRows.groupAchievements(row,data.columns);
+  const metGroups=groups.map(({state},index)=>state==='met'?index+1:null).filter(Boolean);
+  const hasUnmet=groups.some(({state})=>state==='unmet');
   row.values.forEach((value,account)=>{
    const td=tr.cells[account+3];if(!td)return;
    const actual=row.pairActuals?.[account]?.cheerK,met=monthView!=='time'&&PocoRows.targetState(value,actual)==='met';
-   if(met)td.dataset.goalMet='true';else delete td.dataset.goalMet;
+   if(met)td.dataset.goalMet=PocoRows.achievementGroup(data.columns[account]);else delete td.dataset.goalMet;
    const button=td.querySelector('button');if(button&&monthView!=='time'){if(met)button.setAttribute('aria-description',`目標 ${value} K 達成済（実績 ${actual} K）`);else button.removeAttribute('aria-description');}
   });
-  if(release)counts[release]++;if(achievement.state)counts[achievement.state]++;
-  const releaseMatch=release&&rowHighlights.release===release,achievementMatch=achievement.state&&rowHighlights.achievement===achievement.state;
+  if(release)counts[release]++;
+  if(metGroups.length)counts.met++;
+  if(hasUnmet)counts.unmet++;
+  const releaseMatch=release&&rowHighlights.release===release;
+  const achievementMatch=rowHighlights.achievement==='met'&&metGroups.length?'met':
+   rowHighlights.achievement==='unmet'&&hasUnmet?'unmet':null;
   tr.classList.toggle('release-today',Boolean(releaseMatch&&release==='today'));
   if(releaseMatch)tr.dataset.releaseMatch=release;else delete tr.dataset.releaseMatch;
-  if(achievementMatch)tr.dataset.achievementMatch=achievement.state;else delete tr.dataset.achievementMatch;
-  const description=[releaseMatch?releaseLabels[release]:'',achievementMatch?`${achievement.state==='met'?'目標達成済':'目標未達成'}（${achievement.completed}/${achievement.targets}アカウント達成）`:''].filter(Boolean).join('、');
-  const name=tr.querySelector('td.name .name-trigger');if(name){
-   let badge=name.querySelector('.achievement-badge');
-   if(!badge){const label=document.createElement('span');label.className='liver-name-text';label.textContent=row.name||'（未設定）';badge=document.createElement('span');badge.className='achievement-badge';badge.textContent='済';badge.title='数値目標のある全アカウントで達成済';badge.setAttribute('aria-hidden','true');name.replaceChildren(label,badge);}
-   const met=achievement.state==='met';badge.hidden=!met;
-   if(met)name.closest('td').dataset.allGoalsMet='true';else delete name.closest('td').dataset.allGoalsMet;
-   const fullDescription=[description,met&&!achievementMatch?'数値目標のある全アカウントで目標達成済':''].filter(Boolean).join('、');
-   if(fullDescription)name.setAttribute('aria-description',fullDescription);else name.removeAttribute('aria-description');
+  if(achievementMatch)tr.dataset.achievementMatch=achievementMatch;else delete tr.dataset.achievementMatch;
+  if(metGroups.length)tr.dataset.metGroups=metGroups.join(' ');else delete tr.dataset.metGroups;
+  const name=tr.querySelector('td.name .name-trigger');
+  if(name){
+   if(!name.querySelector('.liver-name-text')){
+    const label=document.createElement('span');
+    label.className='liver-name-text';
+    label.textContent=row.name||'（未設定）';
+    name.replaceChildren(label);
+    for(const group of [1,2]){
+     const badge=document.createElement('span');
+     badge.className='achievement-badge';
+     badge.dataset.group=group;
+     badge.textContent=group;
+     badge.title=group===1?'こた・こじ・もえの目標達成':'その他の自垢の目標達成';
+     badge.setAttribute('aria-hidden','true');
+     name.append(badge);
+    }
+   }
+   for(const badge of name.querySelectorAll('.achievement-badge'))badge.hidden=!metGroups.includes(Number(badge.dataset.group));
+   const descriptions=groups.flatMap(({state,completed,targets},index)=>{
+    if(state!=='met'&&!(state==='unmet'&&achievementMatch==='unmet'))return [];
+    const label=index===0?'第1グループ（こた・こじ・もえ）':'第2グループ（その他の自垢）';
+    return [label+(state==='met'?'達成済':`未達成（${completed}/${targets}件達成）`)];
+   });
+   if(releaseMatch)descriptions.unshift(releaseLabels[release]);
+   if(descriptions.length)name.setAttribute('aria-description',descriptions.join('、'));else name.removeAttribute('aria-description');
   }
   const button=tr.querySelector('.release-col button');if(button){button.title=PocoRows.formatRelease(row.releaseDate,book.currentMonth)+(release?'（'+releaseLabels[release]+'）':'');if(release==='today')button.setAttribute('aria-description','本日が解禁日です（日本時間）');else button.removeAttribute('aria-description');}
  });

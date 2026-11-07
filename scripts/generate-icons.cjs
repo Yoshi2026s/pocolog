@@ -3,6 +3,6 @@
 const sharp = require('sharp');
 (async () => {
   for (const [size, name] of [[180, 'apple-touch-icon'], [192, 'icon-192'], [512, 'icon-512']]) {
-    await sharp('favicon.svg').resize(size, size).png().toFile(`icons/${name}.png`);
+    await sharp('favicon.svg').resize(size, size).flatten({background:'#203d43'}).png().toFile(`icons/${name}.png`);
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });

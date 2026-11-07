@@ -2,14 +2,14 @@
   <title>ポコログの記録帳</title>
   <rect width="512" height="512" rx="112" fill="#203d43"/>
   <rect x="120" y="92" width="284" height="350" rx="28" fill="#132e34"/>
-  <rect x="108" y="76" width="284" height="352" rx="26" fill="#bfe5cf"/>
-  <rect x="132" y="88" width="252" height="328" rx="18" fill="#fff9e9"/>
+  <rect x="108" y="76" width="284" height="352" rx="26" fill="#a8dbc3"/>
+  <rect x="132" y="88" width="252" height="328" rx="18" fill="#fff5df"/>
   <path d="M157 90v324" stroke="#e7a19a" stroke-width="5"/>
   <g stroke="#203d43" stroke-width="12" stroke-linecap="round">
-    <path d="M103 122h35M103 178h35M103 234h35M103 290h35M103 346h35M103 394h35"/>
+    <path d="M101 122h37M101 178h37M101 234h37M101 290h37M101 346h37M101 394h37"/>
   </g>
   <rect x="181" y="119" width="158" height="35" rx="9" fill="#2c7161"/>
-  <path d="M201 137h118" stroke="#fff9e9" stroke-width="7" stroke-linecap="round"/>
+  <path d="M201 137h118" stroke="#fff5df" stroke-width="7" stroke-linecap="round"/>
   <g stroke="#abc6bc" stroke-width="5" stroke-linecap="round">
     <path d="M224 200h108M224 254h108M224 308h86M182 363h94"/>
   </g>

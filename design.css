@@ -148,9 +148,9 @@ dialog .dialog-header{background:var(--surface);border-bottom:1px solid var(--li
 #grid tbody tr[data-release-match]>td{background:var(--release-color)}
 #grid tbody tr[data-release-match=after] .release-col button{background:#d3e3f8;color:#244f7b;font-weight:700}#grid tbody tr[data-release-match=before] .release-col button{background:#e2d5f4;color:#634581;font-weight:700}
 #grid tbody tr[data-release-match=after]>td.name{box-shadow:inset 3px 0 #527db5}#grid tbody tr[data-release-match=before]>td.name{box-shadow:inset 3px 0 #8b66ac}
-#grid tbody tr[data-achievement-match=met]:not([data-release-match])>td{background:#e7f4e9}#grid tbody tr[data-achievement-match=unmet]:not([data-release-match])>td{background:#fff0eb}
-#grid tbody tr[data-achievement-match=met]>td.name{background:#dff0e2;box-shadow:inset 4px 0 #378052}#grid tbody tr[data-achievement-match=unmet]>td.name{background:#fbe6e1;box-shadow:inset 4px 0 #bb644c}
-#grid tbody tr[data-achievement-match=met] td.name button.name-trigger{color:#205d36;font-weight:700}#grid tbody tr[data-achievement-match=unmet] td.name button.name-trigger{color:#8a3e2d;font-weight:700}
+#grid tbody tr[data-achievement-match=met]:not([data-release-match])>td{background:var(--group-fill)}#grid tbody tr[data-achievement-match=unmet]:not([data-release-match])>td{background:#fff0eb}
+#grid tbody tr[data-achievement-match=met]>td.name{background:var(--group-fill);box-shadow:inset 4px 0 var(--group-edge)}#grid tbody tr[data-achievement-match=unmet]>td.name{background:#fbe6e1;box-shadow:inset 4px 0 #bb644c}
+#grid tbody tr[data-achievement-match=met] td.name button.name-trigger{font-weight:700}#grid tbody tr[data-achievement-match=unmet] td.name button.name-trigger{color:#8a3e2d;font-weight:700}
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){.color-controls>summary{font-size:11px;padding:4px 5px;min-height:34px}.color-panel{padding:6px}.color-panel button{font-size:11px;padding:5px 2px}.highlight-count{font-size:9px;margin-left:2px}}
 
 /* Personal focus and larger controls are display preferences, never data filters. */
@@ -223,11 +223,19 @@ header .header-meta .month-label{margin-left:auto}#backToAllAccounts{background:
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){.bottom-menus .month-view-switch>button,.bottom-menus .primary-tools>button,.bottom-menus .color-controls>summary,.bottom-menus .primary-tools>.table-tools>summary{min-height:40px}.bottom-menus .view-controls>summary{line-height:24px}}
 
 header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:11px;white-space:nowrap}
-#grid tbody tr>td[data-goal-met=true]{background:#def3fc}#grid td[data-goal-met=true] button.cheer-field{color:#235770;font-weight:700}
+#grid tbody tr[data-met-groups="1"]{--group-fill:#e3f2e7;--group-edge:#378052}
+#grid tbody tr[data-met-groups="2"]{--group-fill:#e3effc;--group-edge:#386a9f}
+#grid tbody tr[data-met-groups="1 2"]{--group-fill:linear-gradient(105deg,#e3f2e7 50%,#e3effc 50%);--group-edge:#378052}
+#grid tbody tr>td[data-goal-met="1"]{background:#e3f2e7}
+#grid tbody tr>td[data-goal-met="2"]{background:#e3effc}
+#grid td[data-goal-met] button.cheer-field{font-weight:700}
 @media(max-width:380px){header .header-meta .month-label{gap:4px}.month-caption{font-size:10px}header .header-meta .month-label input{width:126px;max-width:126px}}
 
 /* A persistent completion badge is independent of the optional row coloring. */
-#grid tbody td.name button.name-trigger{display:flex;align-items:center;gap:3px}.liver-name-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.achievement-badge{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:14px;height:15px;padding:0 2px;border-radius:4px;background:#286680;color:#fff;font-size:9px;font-weight:700;line-height:1;letter-spacing:0}.achievement-badge[hidden]{display:none}#grid tbody tr>td.name[data-all-goals-met=true]{background:#def3fc}#grid tbody td.name[data-all-goals-met=true] .name-trigger{color:#235770}
+#grid tbody td.name button.name-trigger{display:flex;align-items:center;gap:3px}.liver-name-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.achievement-badge{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:14px;height:15px;padding:0 2px;border-radius:4px;background:#286680;color:#fff;font-size:9px;font-weight:700;line-height:1;letter-spacing:0}.achievement-badge[hidden]{display:none}.achievement-badge[data-group="1"]{background:#236841}
+.achievement-badge[data-group="2"]{background:#285e92}
+#grid tbody tr[data-met-groups]:not([data-achievement-match=unmet])>td.name{background:var(--group-fill)}
+.color-panel button[data-achievement-highlight]{min-height:48px}
 #tablePanel.account-focused:not(.roomy-view) #grid tbody td.name button.name-trigger{display:flex}.account-focused .achievement-badge{height:13px;min-width:13px;font-size:8px}
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){#grid tbody td.name button.name-trigger{gap:1px}.achievement-badge{height:12px;min-width:11px;padding:0 1px;font-size:8px;border-radius:3px}}
 #tablePanel #grid tbody td.name button.name-trigger{display:flex}
