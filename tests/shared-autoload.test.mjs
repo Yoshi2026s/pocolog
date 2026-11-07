@@ -80,3 +80,21 @@ test('a failed local install keeps the old book and revision',async()=>{
  assert.equal(h.storage.get('pocolog.pending.v1'),'1');
  assert.match(h.elements.get('syncDetailText').textContent,/保存できません/);
 });
+
+test('a newer revision with identical data updates the base without repainting',async()=>{
+ const h=await setup();
+ const payload=JSON.stringify(h.remote);
+ h.snapshot({revision:7,payload});
+ h.snapshot({revision:8,payload});
+ assert.equal(h.loaded.length,1);
+ assert.equal(h.storage.get('pocolog.shared-revision.v1'),'8');
+ await h.elements.get('sharedSave').onclick();
+ assert.equal(h.transactions,0);
+});
+test('refresh preserves pending input when the server is still at its base revision',async()=>{
+ const h=await setup({pending:true});
+ h.snapshot({revision:3,payload:JSON.stringify(h.remote)});
+ assert.deepEqual(h.current,h.local);
+ assert.equal(h.storage.has('pocolog.before-auto-load.v1'),false);
+ assert.equal(h.storage.get('pocolog.pending.v1'),'1');
+});

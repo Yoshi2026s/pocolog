@@ -59,7 +59,14 @@
     else entity.actuals[date]={...value};
   }
   function actualTotals(entity){
-    return Object.values(entity.actuals||{}).reduce((total,value)=>({days:total.days+Number(value.earnedDay),minutes:total.minutes+(value.minutes??0),cheerK:total.cheerK+(value.cheerK??0),records:total.records+1,timeRecords:total.timeRecords+Number(value.minutes!==null),cheerRecords:total.cheerRecords+Number(value.cheerK!==null)}),{days:0,minutes:0,cheerK:0,records:0,timeRecords:0,cheerRecords:0});
+    const total={days:0,minutes:0,cheerK:0,records:0,timeRecords:0,cheerRecords:0};
+    for(const value of Object.values(entity.actuals||{})){
+      total.records++;
+      total.days+=Number(value.earnedDay);
+      if(value.minutes!==null){total.minutes+=value.minutes??0;total.timeRecords++;}
+      if(value.cheerK!==null){total.cheerK+=value.cheerK??0;total.cheerRecords++;}
+    }
+    return total;
   }
   function viewingDuration(start,end){
     const parse=value=>{
