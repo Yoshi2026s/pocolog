@@ -700,6 +700,66 @@ $('applyActualRange').onclick=()=>{
   $('actualRangePreview').textContent=stored?message:$('plannerStatus').textContent;
  }catch(error){$('actualRangePreview').textContent=error.message;}
 };
+let viewingCopyContext=null;
+function viewingCopyChoices(){
+ return [...$('viewingCopyTargets').querySelectorAll('input[type=checkbox]')];
+}
+function updateViewingCopySelection(){
+ const count=viewingCopyChoices().filter(input=>input.checked).length;
+ $('applyViewingCopy').disabled=count===0;
+ $('applyViewingCopy').textContent=count?`${count}アカウントに反映`:'選んだアカウントへ反映';
+}
+$('openViewingCopy').onclick=()=>{
+ const entity=entityDetails();
+ const current=currentEntity;
+ const source=entity?.actuals?.[current?.date];
+ if(current?.kind!=='pair'||source?.minutes==null||!canNavigateActualEntry())return;
+ const {row,index,date,month}=current;
+ viewingCopyContext={current,date,sourceMinutes:source.minutes,pairs:row.pairActuals};
+ $('viewingCopySource').textContent=`${row.name} × ${data.columns[index]} ／ ${date} ／ ${formatViewingMinutes(source.minutes)}`;
+ $('viewingCopyStatus').textContent='';
+ const targets=$('viewingCopyTargets');
+ targets.replaceChildren();
+ data.columns.forEach((name,targetIndex)=>{
+  if(targetIndex===index)return;
+  const minutes=row.pairActuals?.[targetIndex]?.actuals?.[date]?.minutes;
+  const label=document.createElement('label'),input=document.createElement('input'),text=document.createElement('span');
+  input.type='checkbox';input.value=String(targetIndex);input.dataset.unrecorded=String(minutes==null);
+  input.disabled=minutes===source.minutes;
+  input.addEventListener('change',updateViewingCopySelection);
+  const oldTime=minutes==null?'時間未記録':formatViewingMinutes(minutes);
+  text.textContent=`${name||'（未設定）'} ／ ${input.disabled?oldTime+'（反映済み）':oldTime+' → '+formatViewingMinutes(source.minutes)}`;
+  label.append(input,text);targets.append(label);
+ });
+ $('selectUnrecordedViewing').disabled=!viewingCopyChoices().some(input=>input.dataset.unrecorded==='true');
+ updateViewingCopySelection();updateOverlayViewport();$('viewingCopyDialog').showModal();
+};
+$('selectUnrecordedViewing').onclick=()=>{
+ for(const input of viewingCopyChoices())input.checked=input.dataset.unrecorded==='true'&&!input.disabled;
+ updateViewingCopySelection();
+};
+$('viewingCopyDialog').addEventListener('close',()=>{viewingCopyContext=null;});
+$('applyViewingCopy').onclick=()=>{
+ const context=viewingCopyContext,entity=entityDetails();
+ if(!context||context.current!==currentEntity||context.date!==currentEntity.date||
+    context.sourceMinutes!==entity?.actuals?.[context.date]?.minutes||context.pairs!==currentEntity.row.pairActuals){
+  $('viewingCopyStatus').textContent='記録が変わりました。閉じて開き直してください。';return;
+ }
+ const selected=viewingCopyChoices().filter(input=>input.checked&&!input.disabled).map(input=>Number(input.value));
+ if(!selected.length)return;
+ const {row,index,date,month}=currentEntity;
+ try{
+  row.pairActuals=PocoCalendar.copyViewingTime(data,row,index,selected,date,month);
+  const message=`${selected.length}アカウントへ${formatViewingMinutes(context.sourceMinutes)}を反映しました。`;
+  stats();
+  if(plannerSaved(message)){
+   $('viewingCopyDialog').close();$('actualRangePreview').textContent=message;
+  }else{
+   $('viewingCopyStatus').textContent=$('plannerStatus').textContent;
+   $('applyViewingCopy').disabled=true;
+  }
+ }catch(error){$('viewingCopyStatus').textContent=error.message;}
+};
 function updateViewingGoal(total){
  const pair=currentEntity.kind==='pair';
  $('viewingGoal').hidden=!pair;
@@ -720,6 +780,8 @@ function updateActualTotals(){
  $('actualTotalTime').textContent=total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'未記録';
  $('actualTotalCheer').textContent=currentEntity.kind==='pair'?(entityDetails().cheerK===null?'未記録':fmt(entityDetails().cheerK)+' K'):total.cheerRecords?`${fmt(total.cheerK)} K`:'未記録';
  updateViewingGoal(total);
+ $('openViewingCopy').hidden=currentEntity.kind!=='pair'||data.columns.length<2||
+  entityDetails()?.actuals?.[currentEntity.date]?.minutes==null;
  const history=$('actualHistoryRows');history.replaceChildren();for(const [date,value] of Object.entries(entityDetails().actuals||{}).sort(([a],[b])=>a.localeCompare(b))){const button=document.createElement('button');button.type='button';button.textContent=`${Number(date.slice(5,7))}/${Number(date.slice(8))} ／ ${value.earnedDay?'1日':'日数対象外'} ／ ${value.minutes===null?'時間未記入':`${Math.floor(value.minutes/60)}時間${value.minutes%60}分`}`+(currentEntity.kind==='pair'?'':` ／ ${value.cheerK===null?'エール未記入':fmt(value.cheerK)+' K'}`);button.onclick=()=>{if(selectEntityDay(date))focusActualEditor();};history.append(button);}
  if(!history.childElementCount)history.textContent='実績はまだありません。';updateActualTools();
 }
