@@ -166,3 +166,29 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }
     assert.equal(await page.locator('#viewingRemaining').textContent(), '2時間15分');
   });
 }
+
+test('loading a large month defers the hidden summary and preserves it on reopen', async t => {
+  const page = await openMobile(t, { width: 320, height: 568 });
+  const month = await page.locator('#month').inputValue();
+  await page.evaluate(month => {
+    const next = window.pocolog.getBook();
+    const columns = Array.from({length: 15}, (_, index) => '検証アカウント' + index);
+    next.months[month] = {columns, rows: Array.from({length: 80}, (_, index) => ({
+      name: '検証ライバー' + index, memo: '', values: columns.map(() => '1'),
+      pairActuals: columns.map(() => ({memo: '', cheerK: 1}))
+    }))};
+    window.pocolog.setBookPayload(JSON.stringify(next), () => {});
+  }, month);
+  assert.equal(await page.locator('#sum').textContent(), '1,200');
+  assert.equal(await page.locator('#pairSummaryTable tbody tr').count(), 0);
+  await page.locator('#openSummary').tap();
+  assert.equal(await page.locator('#pairSummaryTable tbody tr').count(), 1200);
+  const firstSummaryRow = await page.locator('#pairSummaryTable tbody tr').first().elementHandle();
+  await page.locator('#closeSummary').tap();
+  await page.locator('#openSummary').tap();
+  assert.equal(await firstSummaryRow.evaluate(node => node.isConnected), true);
+  await page.locator('#closeSummary').tap();
+  await page.reload();
+  assert.equal(await page.locator('#sum').textContent(), '1,200');
+  assert.equal(await page.locator('#pairSummaryTable tbody tr').count(), 0);
+});

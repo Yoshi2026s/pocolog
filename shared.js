@@ -26,16 +26,17 @@ startupBackupButton.onclick = () => {
 };
 const state = new SharedState();
 const pendingKey = 'pocolog.pending.v1', revisionKey = 'pocolog.shared-revision.v1';
+const local = api.localBookState();
 try {
-  const localBook = JSON.parse(localStorage.getItem('pocolog.v1'));
-  if (localStorage.getItem(pendingKey) === '1' && api.validBook(localBook)) {
+  if (local.edited || (local.valid && localStorage.getItem(pendingKey) === '1')) {
     const revision = Number(localStorage.getItem(revisionKey));
     state.revision = Number.isSafeInteger(revision) && revision >= 0 ? revision : 0;
     state.edit();
   }
 } catch {}
 const startupGeneration = state.generation;
-let firstServerSnapshot = true;
+let firstServerSnapshot = true, appliedRecord = null, serverConfirmed = false;
+const sameRecord = (a, b) => Boolean(a && b && a.revision === b.revision && a.payload === b.payload);
 function retainSyncState(revision, clean) {
   try {
     localStorage.setItem(revisionKey, String(revision));
@@ -53,24 +54,27 @@ function buttons() { saveButton.disabled = !connected || busy; reloadButton.disa
 function backupLocal() {
   // Preserve the old local record before showing the shared table.
   const key = 'pocolog.before-shared.v1';
-  if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(api.getBook()));
+  if (!localStorage.getItem(key)) localStorage.setItem(key, api.getPayload());
   archiveButton.hidden = false;
 }
-function apply(record) {
-  if (!record) { retainSyncState(0, !state.dirty); message('共有の記録はまだありません。「保存」で現在の表を登録できます。'); return; }
-  const next = JSON.parse(record.payload);
-  if (!api.validBook(next)) throw Error('共有データの形式を確認できません。');
-  backupLocal();
-  const migrated=api.setBook(next);
-  if(migrated){state.edit();localStorage.setItem(pendingKey,'1');}
+function apply(record, beforeApply = backupLocal) {
+  const migrated = api.setBookPayload(record.payload, beforeApply);
+  state.latest = record;
+  state.accept();
+  appliedRecord = record;
+  if (migrated) {
+    state.edit();
+    localStorage.setItem(pendingKey, '1');
+  }
   retainSyncState(record.revision, !migrated);
-  message(migrated?'不足するアカウントを追加しました。「保存」で反映できます。':'共有先と同期済み', !migrated);
+  message(migrated ? '不足するアカウントを追加しました。「保存」で反映できます。' :
+    serverConfirmed ? '共有先と同期済み' : '最後に確認した共有記録を読み込みました。', !migrated && serverConfirmed);
   return migrated;
 }
 function read(snapshot) {
   if (!snapshot.exists()) return null;
   const record = snapshot.data();
-  if (!Number.isSafeInteger(record.revision) || record.revision < 1 || typeof record.payload !== 'string' || !api.validBook(JSON.parse(record.payload))) {
+  if (!Number.isSafeInteger(record.revision) || record.revision < 1 || typeof record.payload !== 'string') {
     throw Error('共有データの形式を確認できません。');
   }
   return record;
@@ -81,9 +85,13 @@ window.addEventListener('pocolog:edit', () => {
 });
 saveButton.onclick = async () => {
   if (!connected || busy) return;
+  if (!state.dirty && serverConfirmed && sameRecord(state.latest, appliedRecord)) {
+    message('変更はありません。共有先と同期済みです。', true);
+    return;
+  }
   busy = true; buttons(); message('共有先に保存中…');
   try {
-    const payload = JSON.stringify(api.getBook());
+    const payload = api.getPayload();
     if (new TextEncoder().encode(payload).length > 700000) throw Error('記録が大きすぎます。バックアップを保存してください。');
     const clean = await state.save(payload, (expected, body) => runTransaction(ref.firestore, async tx => {
       const snapshot = await tx.get(ref);
@@ -93,9 +101,9 @@ saveButton.onclick = async () => {
       tx.set(ref, { revision, payload: body, updatedAt: serverTimestamp() });
       return revision;
     }));
-    if (!state.latest || state.latest.revision <= state.revision) {
-      state.latest = { revision: state.revision, payload };
-    }
+    serverConfirmed = true;
+    appliedRecord = { revision: state.revision, payload };
+    if (!state.latest || state.latest.revision <= state.revision) state.latest = appliedRecord;
     retainSyncState(state.revision, clean);
     message(clean ? '共有先に保存しました' : '保存中に追加した変更が未共有です。もう一度保存してください。', clean && (!state.latest || state.latest.revision <= state.revision));
   } catch (error) { message(`共有保存できませんでした。${error.message} 入力はこのブラウザに残っています。`); }
@@ -103,15 +111,20 @@ saveButton.onclick = async () => {
 };
 reloadButton.onclick = () => {
   if (!connected || busy) return;
+  if (!state.latest) {
+    message('共有の記録はまだありません。現在の入力を保存できます。');
+    return;
+  }
+  if (!state.dirty && sameRecord(state.latest, appliedRecord)) {
+    message(serverConfirmed ? '最新版を表示しています。' : '最後に確認した共有記録を表示しています。', serverConfirmed);
+    return;
+  }
   if (state.dirty) {
     if (!confirm('未共有の入力をバックアップ保存してから、共有の最新版に置き換えますか？')) return;
     api.downloadBackup();
   }
-  try {
-    // Validate and preserve the pending data before discarding the dirty flag.
-    if (state.latest) { backupLocal(); apply(state.latest); state.accept(); }
-    else message('共有の記録はまだありません。現在の入力を保存できます。');
-  } catch (error) { message(error.message); }
+  try { apply(state.latest); }
+  catch (error) { message(error.message); }
 };
 window.addEventListener('beforeunload', event => { if (state.dirty && connected) { event.preventDefault(); event.returnValue = ''; } });
 
@@ -120,9 +133,7 @@ async function start() {
   buttons();
   if (!config) { message('共有保存は未接続です。現在はこのブラウザへの保存です。'); return; }
   message('共有の最新版を自動読込中…');
-  api.setEditing(false);
   const waiting = setTimeout(() => {
-    api.setEditing(true);
     message('共有先の応答を待っています。入力はこのブラウザに保存できます。');
   }, 15000);
   try {
@@ -139,41 +150,55 @@ async function start() {
     onSnapshot(ref, { includeMetadataChanges: true }, snapshot => {
       // Local cached or pending writes do not prove server synchronization.
       if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) {
+        serverConfirmed = false;
         message('共有先の確認待ちです。オフラインの場合、入力はブラウザに保存されます。'); return;
       }
       try {
         clearTimeout(waiting);
         const record = read(snapshot);
-        const restoreAtStartup = firstServerSnapshot && record && state.dirty && state.generation === startupGeneration;
+        const first = firstServerSnapshot;
         firstServerSnapshot = false;
-        const received = state.receive(record);
-        if (restoreAtStartup) {
-          // Preserve pending input before replacing it; edits made after opening are never discarded.
-          let backedUp = false;
-          try {
-            localStorage.setItem(startupBackupKey, JSON.stringify(api.getBook()));
-            startupBackupButton.hidden = false;
-            backedUp = true;
-          } catch { message('未共有入力のバックアップを保存できないため、自動読込を保留しました。入力は保持しています。'); }
-          if (backedUp) {
-            const migrated = apply(record);
-            if (migrated) state.revision = record.revision; else state.accept();
-            message(migrated?'最新版を自動読込しました。不足するアカウントの追加は「保存」で反映できます。':'最新版を自動読込しました。以前の未共有入力は「その他」から保存できます。', !migrated);
-          }
+        serverConfirmed = true;
+        if (first && record && state.dirty && !local.edited && state.generation === startupGeneration) {
+          // Edits made after opening, including before this module loads, must survive startup.
+          state.receive(record);
+          const migrated = apply(record, () => {
+            try {
+              localStorage.setItem(startupBackupKey, api.getPayload());
+              startupBackupButton.hidden = false;
+            } catch {
+              throw Error('未共有入力のバックアップを保存できないため、自動読込を保留しました。入力は保持しています。');
+            }
+            backupLocal();
+          });
+          message(migrated?'最新版を自動読込しました。不足するアカウントの追加は「保存」で反映できます。':'最新版を自動読込しました。以前の未共有入力は「その他」から保存できます。', !migrated);
+        } else if (state.dirty) {
+          state.receive(record);
+          if ((record?.revision ?? 0) !== state.revision) message('共有先に更新があります。未共有の入力を確認してから最新版を読み込んでください。');
+          else message('未共有の入力を復元しました。「保存」で反映できます。');
+        } else if (!record) {
+          state.receive(null);appliedRecord=null;retainSyncState(0,true);
+          message('共有の記録はまだありません。「保存」で現在の表を登録できます。');
+        } else if (sameRecord(record, appliedRecord) || (first && record.payload === api.getPayload())) {
+          appliedRecord=record;state.receive(record);retainSyncState(record.revision,true);
+          message('共有先と同期済み',true);
+        } else {
+          apply(record);
         }
-        else if (received) apply(record);
-        else if ((record?.revision ?? 0) !== state.revision) message('共有先に更新があります。未共有の入力を確認してから最新版を読み込んでください。');
-        else message('未共有の入力を復元しました。「保存」で反映できます。');
-        connected = true; api.setEditing(true); buttons();
-      } catch (error) { connected = false; api.setEditing(true); buttons(); message(error.message); }
+        connected = true; buttons();
+      } catch (error) {
+        // A failed load must not advance the revision of the local book.
+        serverConfirmed = false;
+        connected = Boolean(state.latest);
+        buttons();message(error.message);
+      }
     }, error => {
       clearTimeout(waiting);
-      connected = false; api.setEditing(true); buttons();
+      connected = false; serverConfirmed = false; buttons();
       message(`共有先に接続できません。このブラウザへの保存を続けられます。${error.code}`);
     });
   } catch (error) {
     clearTimeout(waiting);
-    api.setEditing(true);
     if (['auth/admin-restricted-operation', 'auth/operation-not-allowed'].includes(error.code)) {
       message('共有編集のログイン設定がまだ完了していません。入力はこのブラウザに保存できます。');
     } else {
@@ -181,5 +206,5 @@ async function start() {
     }
   }
 }
-window.addEventListener('offline', () => { if (connected) message('オフラインです。入力はこのブラウザに保存し、共有保存は接続後に行ってください。'); });
+window.addEventListener('offline', () => { serverConfirmed = false; if (connected) message('オフラインです。入力はこのブラウザに保存し、共有保存は接続後に行ってください。'); });
 start();
