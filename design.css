@@ -301,3 +301,11 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 .cheer-picker-details{flex:none;width:100%;min-height:44px;padding:7px;font-size:12px;margin-top:4px;background:#e8f1e7;color:#194f47}
 .pair-cheer-list-label{display:block;font-size:13px;margin:12px 0}
 .pair-cheer-list-label select{display:block;width:100%;min-height:48px;font-size:18px;margin-top:5px}
+
+.bottom-menus .primary-tools>#shareUrl{min-width:48px;min-height:48px}
+#shareUrlDialog{width:min(420px,calc(var(--visible-width,100vw) - 20px));max-height:calc(var(--visible-height,100dvh) - 20px);overflow:auto}
+#shareUrlDialog label{display:block;font-size:13px}
+#publicShareUrl{display:block;width:100%;min-height:48px;margin:4px 0 8px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:16px}
+#shareUrlDialog button{min-width:48px;min-height:48px}
+#shareUrlStatus:empty{display:none}
+@media(max-width:380px){.bottom-menus .primary-tools{flex-wrap:wrap}}
