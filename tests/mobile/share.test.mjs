@@ -108,11 +108,11 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }
     const otherDate = month + '-02';
     await page.evaluate(({month,date,otherDate}) => {
       const current = window.pocolog.getBook();
-      current.months[month] = {columns:['こた'],rows:[{
-        name:'検証用',memo:'',values:['5'],pairActuals:[{memo:'',cheerK:2,actuals:{
+      current.months[month] = {columns:['こた','こじ','もえ'],rows:[{
+        name:'検証用',memo:'',values:['5','',''],pairActuals:[{memo:'',cheerK:2,actuals:{
           [date]:{earnedDay:true,minutes:30,cheerK:1},
           [otherDate]:{earnedDay:true,minutes:60,cheerK:null}
-        }}]
+        }},{memo:'保護',cheerK:8,actuals:{[date]:{earnedDay:false,minutes:25,cheerK:4}}},null]
       }]};
       window.pocolog.setBook(current);
     }, {month,date,otherDate});
@@ -142,7 +142,24 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }
       [date]:{earnedDay:true,minutes:105,cheerK:1},
       [otherDate]:{earnedDay:true,minutes:60,cheerK:null}
     }});
+    await page.getByRole('button', { name: '他アカウントへ反映' }).tap();
+    const copyDialog = page.getByRole('dialog', { name: '視聴時間を他アカウントへ反映' });
+    const filled = copyDialog.getByRole('checkbox', { name: /こじ.*25分/ });
+    const empty = copyDialog.getByRole('checkbox', { name: /もえ.*時間未記録/ });
+    assert.equal(await copyDialog.getByRole('button', { name: '選んだアカウントへ反映' }).isDisabled(), true);
+    await copyDialog.getByRole('button', { name: '時間未記録をまとめて選択' }).tap();
+    assert.equal(await filled.isChecked(), false);
+    assert.equal(await empty.isChecked(), true);
+    await copyDialog.getByRole('button', { name: '1アカウントに反映' }).tap();
+    await copyDialog.waitFor({ state:'hidden' });
+    const readTargets=()=>page.evaluate(month=>window.pocolog.getBook().months[month].rows[0].pairActuals.slice(1),month);
+    const expectedTargets=[
+      {memo:'保護',cheerK:8,actuals:{[date]:{earnedDay:false,minutes:25,cheerK:4}}},
+      {memo:'',cheerK:null,actuals:{[date]:{earnedDay:true,minutes:105,cheerK:null}}}
+    ];
+    assert.deepEqual(await readTargets(),expectedTargets);
     await page.reload();
+    assert.deepEqual(await readTargets(),expectedTargets);
     await openDay();
     assert.equal(await page.locator('#actualHours').inputValue(), '1');
     assert.equal(await page.locator('#actualMinutes').inputValue(), '45');

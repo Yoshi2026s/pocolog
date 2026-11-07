@@ -100,3 +100,22 @@ test('account-by-liver actuals are optional, isolated and keep zero distinct fro
  assert.equal(validPairActuals({...first,pairActuals:[{...pair,cheerK:-1},null]},table.columns,'2026-11'),false);assert.equal(validPairActuals(first,['one'],'2026-11'),false);
  const restored=JSON.parse(JSON.stringify(table));assert.equal(restored.rows[0].pairActuals[0].cheerK,0);assert.equal(restored.rows[0].pairActuals[1],null);
 });
+
+test('copy viewing time to selected accounts without replacing other records',()=>{
+ const date='2026-11-03',other='2026-11-04',month='2026-11';
+ const source={memo:'元',cheerK:3,actuals:{[date]:{earnedDay:true,minutes:90,cheerK:2}}};
+ const target={memo:'先',cheerK:5,schedule:{[date]:'予定'},actuals:{
+  [date]:{earnedDay:false,minutes:0,cheerK:4},
+  [other]:{earnedDay:true,minutes:20,cheerK:null}
+ }};
+ const row={pairActuals:[source,target,null,null]};
+ const table={columns:['こた','こじ','もえ','ヨシ'],rows:[row]};
+ const snapshot=structuredClone(row);
+ const next=PocoCalendar.copyViewingTime(table,row,0,[1,2,2],date,month);
+ assert.deepEqual(next,[source,{...target,actuals:{...target.actuals,[date]:{earnedDay:false,minutes:90,cheerK:4}}},
+  {memo:'',cheerK:null,actuals:{[date]:{earnedDay:true,minutes:90,cheerK:null}}},null]);
+ assert.deepEqual(row,snapshot);
+ assert.throws(()=>PocoCalendar.copyViewingTime(table,row,0,[1,0],date,month));
+ assert.throws(()=>PocoCalendar.copyViewingTime(table,row,0,[1,4],date,month));
+ assert.throws(()=>PocoCalendar.copyViewingTime(table,row,0,[1],other,month));
+});

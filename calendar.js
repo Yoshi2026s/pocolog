@@ -107,5 +107,25 @@
     if(!row.pairActuals)row.pairActuals=table.columns.map(()=>null);
     if(!row.pairActuals[index])row.pairActuals[index]=blank();return row.pairActuals[index];
   }
-  globalThis.PocoCalendar = Object.freeze({ monthInfo, dates, validSchedule, validAccounts, accountDetails, setDay, validActuals, setActual, actualTotals, viewingDuration, addActualMinutes, bulkActuals, missingActualDates, validPairActuals, pairDetails });
+  function copyViewingTime(table,row,sourceIndex,targetIndices,date,month){
+    if(!table.rows.includes(row)||!validPairActuals(row,table.columns,month))throw Error('対象の実績を確認してください。');
+    const source=row.pairActuals?.[sourceIndex]?.actuals?.[date];
+    if(source?.minutes==null||!validActuals({[date]:source},month))throw Error('コピー元の日付に視聴時間を記録してください。');
+    if(!targetIndices.length||targetIndices.some(index=>!Number.isInteger(index)||index<0||index>=table.columns.length||index===sourceIndex)){
+      throw Error('反映先のアカウントを確認してください。');
+    }
+    const next=[...row.pairActuals];
+    for(const index of new Set(targetIndices)){
+      const target=structuredClone(pairDetails(table,row,index));
+      const previous=target.actuals?.[date];
+      setActual(target,date,{
+        minutes:source.minutes,
+        earnedDay:previous?.earnedDay??source.earnedDay,
+        cheerK:previous?.cheerK??null
+      },month);
+      next[index]=target;
+    }
+    return next;
+  }
+  globalThis.PocoCalendar = Object.freeze({ monthInfo, dates, validSchedule, validAccounts, accountDetails, setDay, validActuals, setActual, actualTotals, viewingDuration, addActualMinutes, bulkActuals, missingActualDates, validPairActuals, pairDetails, copyViewingTime });
 })();
