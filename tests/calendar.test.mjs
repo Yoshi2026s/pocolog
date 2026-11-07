@@ -55,13 +55,12 @@ test('earned days are counted once and edits replace values, distinguishing blan
  assert.deepEqual(JSON.parse(JSON.stringify(row)).actuals,row.actuals);
 });
 
-test('time ranges split midnight correctly and reject invalid or cross-month ranges',()=>{
- const {splitActualRange}=PocoCalendar;
- assert.deepEqual(splitActualRange('2026-11-03','09:00','10:15',false,'2026-11'),{'2026-11-03':75});
- assert.deepEqual(splitActualRange('2026-11-03','23:30','01:15',true,'2026-11'),{'2026-11-03':30,'2026-11-04':75});
- assert.deepEqual(splitActualRange('2026-11-30','23:00','00:00',true,'2026-11'),{'2026-11-30':60});
- assert.deepEqual(splitActualRange('2028-02-28','23:00','01:00',true,'2028-02'),{'2028-02-28':60,'2028-02-29':60});
- for(const args of [['2026-11-03','23:00','01:00',false],['2026-11-03','09:00','09:00',false],['2026-11-03','09:00','10:00',true],['2026-11-30','23:00','01:00',true],['2026-11-03','25:00','01:00',true]])assert.throws(()=>splitActualRange(...args,'2026-11'));
+test('viewing duration calculates same-day and overnight times and rejects invalid inputs',()=>{
+ const {viewingDuration}=PocoCalendar;
+ assert.equal(viewingDuration('09:00','10:15'),75);
+ assert.equal(viewingDuration('23:30','01:15'),105);
+ assert.equal(viewingDuration('23:00','00:00'),60);
+ for(const pair of [['09:00','09:00'],['25:00','01:00'],['09:00',''],['09:61','10:00']])assert.throws(()=>viewingDuration(...pair));
 });
 test('time additions preserve cheers and dates, count once, floor subtraction and fail atomically',()=>{
  const {addActualMinutes,actualTotals}=PocoCalendar;

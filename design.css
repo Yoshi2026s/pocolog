@@ -309,3 +309,14 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 #shareUrlDialog button{min-width:48px;min-height:48px}
 #shareUrlStatus:empty{display:none}
 @media(max-width:380px){.bottom-menus .primary-tools{flex-wrap:wrap}}
+
+.actual-viewing-entry,.actual-viewing-goal{margin:10px 0;padding:8px;border:1px solid var(--line);border-radius:9px;background:#f5f9f3}
+.actual-viewing-entry h3,.actual-viewing-goal h3{margin:0 0 5px;font-size:14px}
+.actual-viewing-entry .actual-range-inputs input{min-width:0;min-height:48px}
+.actual-viewing-entry .note,.actual-viewing-goal .note{margin:5px 0}
+#applyActualRange{min-height:48px;scroll-margin-block-start:calc(var(--entity-header-height,60px) + 80px)}
+#applyActualRange:disabled{opacity:.55;cursor:default}
+.viewing-goal-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:0}
+.viewing-goal-values div{padding:5px;border-radius:6px;background:var(--surface)}
+.viewing-goal-values dt{font-size:11px}
+.viewing-goal-values dd{margin:2px 0 0;font-weight:700;font-size:13px;overflow-wrap:anywhere}

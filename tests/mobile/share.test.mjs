@@ -99,3 +99,53 @@ for (const behavior of ['success', 'cancel', 'reject']) {
     assert.equal(await dialog.isVisible(), behavior === 'reject');
   });
 }
+
+for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }]) {
+  test(`viewing time replaces the selected day and survives reload (${viewport.width}×${viewport.height})`, async t => {
+    const page = await openMobile(t, viewport);
+    const month = await page.locator('#month').inputValue();
+    const date = month + '-01';
+    const otherDate = month + '-02';
+    await page.evaluate(({month,date,otherDate}) => {
+      const current = window.pocolog.getBook();
+      current.months[month] = {columns:['こた'],rows:[{
+        name:'検証用',memo:'',values:['5'],pairActuals:[{memo:'',cheerK:2,actuals:{
+          [date]:{earnedDay:true,minutes:30,cheerK:1},
+          [otherDate]:{earnedDay:true,minutes:60,cheerK:null}
+        }}]
+      }]};
+      window.pocolog.setBook(current);
+    }, {month,date,otherDate});
+    await page.locator('#monthViewTime').tap();
+    const openDay = async () => {
+      await page.locator('#grid [data-actual-account="0"]').first().tap();
+      await page.locator(`#entityCalendar [data-date="${date}"]`).tap();
+    };
+    await openDay();
+    const start = page.getByLabel('視聴開始');
+    const end = page.getByLabel('視聴終了');
+    await start.waitFor();
+    await end.waitFor();
+    assert.equal(await page.locator('#viewingRequired').textContent(), '5時間');
+    assert.equal(await page.locator('#viewingCurrent').textContent(), '1時間30分');
+    assert.equal(await page.locator('#viewingRemaining').textContent(), '3時間30分');
+    await start.fill('23:30');
+    await end.fill('01:15');
+    const update = page.getByRole('button', { name: 'この日の時間を更新' });
+    assert.match(await page.locator('#actualRangePreview').textContent(), /30分 → 1時間45分（翌日まで）/);
+    await update.tap();
+    assert.equal(await page.locator('#viewingCurrent').textContent(), '2時間45分');
+    assert.equal(await page.locator('#viewingRemaining').textContent(), '2時間15分');
+    assert.equal(await update.isDisabled(), true);
+    const readPair = () => page.evaluate(month=>window.pocolog.getBook().months[month].rows[0].pairActuals[0],month);
+    assert.deepEqual(await readPair(), {memo:'',cheerK:2,actuals:{
+      [date]:{earnedDay:true,minutes:105,cheerK:1},
+      [otherDate]:{earnedDay:true,minutes:60,cheerK:null}
+    }});
+    await page.reload();
+    await openDay();
+    assert.equal(await page.locator('#actualHours').inputValue(), '1');
+    assert.equal(await page.locator('#actualMinutes').inputValue(), '45');
+    assert.equal(await page.locator('#viewingRemaining').textContent(), '2時間15分');
+  });
+}
