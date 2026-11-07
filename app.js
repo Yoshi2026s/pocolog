@@ -630,8 +630,8 @@ function updateActualTools(){
 function applyActualAction(next,message){
  const entity=entityDetails(true);if(!isActualContext()||!entity)return;
  const before=structuredClone(entity.actuals||{});if(!PocoCalendar.validActuals(next,currentEntity.month))throw Error('実績の内容を確認してください。');
- entity.actuals=next;loadActualDay(entity,currentEntity.date);renderEntityCalendar();stats();plannerSaved(message);
- lastActualAction={row:entity,table:data,before,after:structuredClone(next)};updateActualTools();
+ entity.actuals=next;loadActualDay(entity,currentEntity.date);renderEntityCalendar();stats();const stored=plannerSaved(message);
+ lastActualAction={row:entity,table:data,before,after:structuredClone(next)};updateActualTools();return stored;
 }
 function addActualTime(changes,message){
  if(!canNavigateActualEntry())return;
@@ -667,34 +667,65 @@ function undoActualDay(restoreDraft=true){
  entity.actuals=structuredClone(action.before);actualBulkAppliedSignature='';lastActualAction=null;loadActualDay(entity,currentEntity.date);renderEntityCalendar();stats();plannerSaved('直前の実績操作を元に戻しました。');
  focusActualEditor();
 }
-function previewActualRange(event){
+const formatViewingMinutes=minutes=>minutes<60?`${minutes}分`:`${Math.floor(minutes/60)}時間${minutes%60?minutes%60+'分':''}`;
+function previewActualRange(){
  if(!isActualContext())return;
  const start=$('actualRangeStart').value,end=$('actualRangeEnd').value;
- if(event?.target!==$('actualRangeNextDay')&&start&&end&&end<start)$('actualRangeNextDay').checked=true;
- $('applyActualRange').disabled=true;
- if(!start||!end){$('actualRangePreview').textContent='開始・終了を選ぶと計算します。';return;}
- try{const changes=PocoCalendar.splitActualRange(currentEntity.date,start,end,$('actualRangeNextDay').checked,currentEntity.month);PocoCalendar.addActualMinutes(entityDetails().actuals,changes,currentEntity.month);
- const total=Object.values(changes).reduce((sum,n)=>sum+n,0);$('actualRangePreview').textContent=`${Math.floor(total/60)}時間${total%60}分 ／ ${Object.keys(changes).length}日分に加算`;$('applyActualRange').disabled=false;
- }catch(error){$('actualRangePreview').textContent=error.message;}
+ const previous=entityDetails()?.actuals?.[currentEntity.date]?.minutes;
+ const preview=$('actualRangePreview'),button=$('applyActualRange');
+ button.disabled=true;
+ button.textContent=previous==null?'この日の時間に記録':'この日の時間を更新';
+ if(!start||!end){
+  preview.textContent=previous==null?'開始と終了を選ぶと差分を表示します。':`記録済み：${formatViewingMinutes(previous)}`;
+  return;
+ }
+ try{
+  const duration=PocoCalendar.viewingDuration(start,end);
+  const label=formatViewingMinutes(duration)+(end<start?'（翌日まで）':'');
+  preview.textContent=previous==null?`視聴時間：${label}`:`記録済み ${formatViewingMinutes(previous)} → ${label}`;
+  button.disabled=false;
+ }catch(error){preview.textContent=error.message;}
 }
-for(const id of ['actualRangeStart','actualRangeEnd','actualRangeNextDay'])$(id).addEventListener('input',previewActualRange);
+for(const id of ['actualRangeStart','actualRangeEnd'])$(id).addEventListener('input',previewActualRange);
 $('applyActualRange').onclick=()=>{
- if(!isActualContext())return;
- try{const changes=PocoCalendar.splitActualRange(currentEntity.date,$('actualRangeStart').value,$('actualRangeEnd').value,$('actualRangeNextDay').checked,currentEntity.month);addActualTime(changes,'開始・終了時刻から計算した時間を加算しました。');}
- catch(error){$('actualRangePreview').textContent=error.message;}
+ if(!isActualContext()||!canNavigateActualEntry())return;
+ const entity=entityDetails();
+ if(!entity)return;
+ try{
+  const duration=PocoCalendar.viewingDuration($('actualRangeStart').value,$('actualRangeEnd').value);
+  const date=currentEntity.date,next=structuredClone(entity.actuals||{});
+  next[date]={earnedDay:true,minutes:duration,cheerK:next[date]?.cheerK??null};
+  const message=`${formatViewingMinutes(duration)}をこの日の視聴時間に記録しました。`;
+  const stored=applyActualAction(next,message);
+  $('actualRangePreview').textContent=stored?message:$('plannerStatus').textContent;
+ }catch(error){$('actualRangePreview').textContent=error.message;}
 };
+function updateViewingGoal(total){
+ const pair=currentEntity.kind==='pair';
+ $('viewingGoal').hidden=!pair;
+ if(!pair)return;
+ const raw=currentEntity.row.values[currentEntity.index];
+ const hasGoal=PocoRows.targetState(raw,null)!==null;
+ const required=hasGoal?PocoCoins.viewingMinutes(Number(raw)):null;
+ $('viewingRequired').textContent=required===null?(hasGoal?'未確認':'目標未設定'):formatViewingMinutes(required);
+ $('viewingCurrent').textContent=total.timeRecords?formatViewingMinutes(total.minutes):'未記録';
+ $('viewingRemaining').textContent=required===null?'—':formatViewingMinutes(Math.max(0,required-total.minutes));
+ $('viewingGoalNote').textContent=required!==null?'視聴時間の目安です。エール獲得にはコイン・日数などの条件もあります。':
+  hasGoal?'このエール級の必要時間はPocochaアプリで確認してください。':'月目標に数値を入れると、確認済みの条件を表示します。';
+}
 function updateActualTotals(){
  if(!isActualContext())return;
  const total=PocoCalendar.actualTotals(entityDetails());
  $('actualTotalDays').textContent=total.records?`${total.days}日`:'未記録';
  $('actualTotalTime').textContent=total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'未記録';
  $('actualTotalCheer').textContent=currentEntity.kind==='pair'?(entityDetails().cheerK===null?'未記録':fmt(entityDetails().cheerK)+' K'):total.cheerRecords?`${fmt(total.cheerK)} K`:'未記録';
+ updateViewingGoal(total);
  const history=$('actualHistoryRows');history.replaceChildren();for(const [date,value] of Object.entries(entityDetails().actuals||{}).sort(([a],[b])=>a.localeCompare(b))){const button=document.createElement('button');button.type='button';button.textContent=`${Number(date.slice(5,7))}/${Number(date.slice(8))} ／ ${value.earnedDay?'1日':'日数対象外'} ／ ${value.minutes===null?'時間未記入':`${Math.floor(value.minutes/60)}時間${value.minutes%60}分`}`+(currentEntity.kind==='pair'?'':` ／ ${value.cheerK===null?'エール未記入':fmt(value.cheerK)+' K'}`);button.onclick=()=>{if(selectEntityDay(date))focusActualEditor();};history.append(button);}
  if(!history.childElementCount)history.textContent='実績はまだありません。';updateActualTools();
 }
 function loadActualDay(entity,date){
  if(!isActualContext())return;
- lastActualAction=null;$('actualRangeStart').value='';$('actualRangeEnd').value='';$('actualRangeNextDay').checked=false;$('actualRangePanel').open=false;
+ lastActualAction=null;$('actualRangeStart').value='';$('actualRangeEnd').value='';
  const value=entity.actuals?.[date];
  $('actualDayTitle').textContent=`${Number(date.slice(5,7))}月${Number(date.slice(8))}日の獲得実績`;
  $('actualEarnedDay').checked=value?.earnedDay||false;
@@ -749,6 +780,7 @@ function openEntityPlanner(target){
 }
 function plannerSaved(message=''){
  const stored=save();$('plannerStatus').textContent=stored?(message||'このブラウザに保存しました'):'保存できません。バックアップを保存してください。';
+ return stored;
 }
 $('entityMemo').oninput=()=>{
  const entity=entityDetails(true);if(!entity)return;entity.memo=$('entityMemo').value;

@@ -27,3 +27,12 @@ test('unlisted, invalid and out-of-range values are never silently estimated', (
   for (const level of ['1.5', '31', '49', '-1', 'Infinity', '1e1', 'メモ']) assert.equal(convert(level).coins, null);
   assert.deepEqual(summarize(['10', '1.5', '49', '○']), {coins:3000, unknown:2});
 });
+
+test('viewing time uses documented condition 1 levels without extrapolation',()=>{
+ assert.equal(PocoCoins.viewingMinutes(0.1),90);
+ assert.equal(PocoCoins.viewingMinutes(1),180);
+ assert.equal(PocoCoins.viewingMinutes(15),570);
+ assert.equal(PocoCoins.viewingMinutes(35),1350);
+ assert.equal(PocoCoins.viewingMinutes(40),1500);
+ for(const unknown of [0,2,48])assert.equal(PocoCoins.viewingMinutes(unknown),null);
+});

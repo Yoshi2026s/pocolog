@@ -13,6 +13,13 @@
     [42, 125000], [44, 150000], [46, 200000], [48, 250000]
   ];
   const lookup = new Map([[0, 0], ...tiers]);
+  // Condition 1 viewing thresholds from the official Pococha core fan FAQ.
+  // https://pococha-jp.pococha.com/hc/ja/articles/31868221880857
+  const viewingByLevel = new Map([
+    [0.1, 90], [0.5, 120], [1, 180], [5, 300], [10, 420], [15, 570],
+    [20, 750], [25, 960], [30, 1200], [35, 1350], [40, 1500]
+  ]);
+  const viewingMinutes = level => viewingByLevel.get(level) ?? null;
   function convert(value) {
     const text = String(value).trim();
     if (!text) return { status: 'blank', coins: null };
@@ -30,5 +37,5 @@
       return result;
     }, { coins: 0, unknown: 0 });
   }
-  globalThis.PocoCoins = Object.freeze({ tiers: tiers.map(tier => Object.freeze(tier)), convert, summarize });
+  globalThis.PocoCoins = Object.freeze({ tiers: tiers.map(tier => Object.freeze(tier)), convert, summarize, viewingMinutes });
 })();
