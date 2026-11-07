@@ -17,6 +17,11 @@ npm run dev
 
 `app.js`・`index.html`・`design.css` などの編集元を変更し、`dist/` は `npm run build` で生成します。公開と同じ確認は `npm test` と `npm run build` です。ローカルでもFirebaseの共有先は本番設定なので、画面で「共有先に保存」を押すと本番データに反映されます。動作確認には別のブラウザープロファイルを使い、共有保存を行わないでください。
 
+スマホ表示はプルリクエストの **Check Pocolog** で自動検証します。Chromiumのタッチ操作を有効にし、小さい縦画面・縦画面・横画面・低い横画面で「URL共有」の表示、タップ、コピー、閉じる操作を確認します。共有APIとクリップボードは模擬応答を使い、本番のFirebaseへの通信は遮断します。
+
+手元で実行する場合は、`npm ci` と `npm run build` の後に `npx playwright install --only-shell chromium` と `npm run test:mobile` を実行します。
+
+
 ## 機能
 
 - ライバー名・アカウント名の編集、選択式のエール入力、メモの直接入力と行・列の追加・削除
