@@ -320,3 +320,6 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 .viewing-goal-values div{padding:5px;border-radius:6px;background:var(--surface)}
 .viewing-goal-values dt{font-size:11px}
 .viewing-goal-values dd{margin:2px 0 0;font-weight:700;font-size:13px;overflow-wrap:anywhere}
+
+/* Leave rows reachable when a short screen can show only one row at a time. */
+.short-viewport #grid thead th{position:relative;top:auto}
