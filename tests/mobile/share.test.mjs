@@ -235,3 +235,30 @@ test('loading another month retains the current table and editable records', asy
   });
   assert.deepEqual(result,{row:'新しいライバー',hasOther:true});
 });
+
+test('one display menu restores all accounts and uncommon cheer values remain editable', async t => {
+  const page = await openMobile(t, { width: 320, height: 568 });
+  const display = page.locator('#viewControlsSummary');
+  await display.tap();
+  await page.locator('#accountViewChoices').getByRole('button', {name:'こた', exact:true}).tap();
+  assert.match(await display.textContent(), /こた/);
+  await display.tap();
+  await page.locator('#accountViewChoices').getByRole('button', {name:'全アカウント', exact:true}).tap();
+  assert.equal(await display.textContent(), '表示');
+  await page.locator('#monthViewTime').tap();
+  await page.locator('#grid [data-actual-account="0"]').first().tap();
+  assert.equal(await page.locator('#planDayNavigation').isVisible(), false);
+  assert.equal(await page.locator('#actualPreviousDay').isVisible(), true);
+  const preset = page.locator('#pairCheerSelect');
+  const custom = page.locator('#pairCurrentCheer');
+  assert.equal(await custom.isVisible(), false);
+  await preset.selectOption('3');
+  await page.locator('#pairCheerCustom summary').tap();
+  await custom.fill('0.5');
+  assert.equal(await preset.inputValue(), '0.5');
+  await page.locator('#undoPairCheer').tap();
+  assert.equal(await preset.inputValue(), '');
+  await preset.selectOption('3');
+  await preset.selectOption('');
+  assert.equal(await custom.inputValue(), '');
+});

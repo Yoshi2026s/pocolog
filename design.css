@@ -214,7 +214,7 @@ header .brand{grid-column:1;grid-row:1}.header-actions{grid-column:2;grid-row:1}
 @media(max-width:380px){header .title-block .brand{font-size:17px;white-space:nowrap}header .title-block .brand-mark{display:none}.header-actions{grid-column:2;grid-row:1}.header-meta{grid-row:2}}
 
 /* Keep the month at the right edge and use the focus view for a dense overview. */
-header .header-meta .month-label{margin-left:auto}#backToAllAccounts{background:#e6f1e8;border-color:#90b39c;color:#235b40}#backToAllAccounts[hidden]{display:none}
+header .header-meta .month-label{margin-left:auto}
 #tablePanel.account-focused:not(.roomy-view) #grid thead th{height:32px}#tablePanel.account-focused:not(.roomy-view) #grid thead .name-trigger,#tablePanel.account-focused:not(.roomy-view) #grid thead .sort-label{min-height:32px;height:32px;padding:1px 2px;font-size:11px;margin:0}
 #tablePanel.account-focused:not(.roomy-view) #grid tbody td{height:calc(var(--focus-row-height,24px) + 1px)}#tablePanel.account-focused:not(.roomy-view) #grid tbody button.name-trigger,#tablePanel.account-focused:not(.roomy-view) #grid tbody button.cheer-field,#tablePanel.account-focused:not(.roomy-view) #grid tbody button.schedule-field{height:var(--focus-row-height,24px);min-height:var(--focus-row-height,24px);padding:0 3px;margin:0;font-size:var(--focus-row-font,11px);line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}#tablePanel.account-focused:not(.roomy-view) #grid tbody button.schedule-field span{display:inline}#tablePanel.account-focused:not(.roomy-view) #grid tbody button.schedule-field span+span::before{content:' '}
 #tablePanel.account-focused:not(.roomy-view) #grid button.pair-time-cell{flex-direction:row;gap:6px;align-items:center;justify-content:center}#tablePanel.account-focused:not(.roomy-view) #grid .pair-time-days,#tablePanel.account-focused:not(.roomy-view) #grid .pair-time-duration{font-size:var(--focus-row-font,11px);line-height:14px}
@@ -334,3 +334,9 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 .viewing-copy-targets input{flex:none;width:20px;height:20px;accent-color:var(--brand)}
 .viewing-copy-targets span{overflow-wrap:anywhere}
 #openViewingCopy[hidden]{display:none}
+
+#planDayNavigation[hidden]{display:none}
+#pairCheerCustom>summary{min-height:48px;display:flex;align-items:center}
+#pairCheerCustom button{min-height:48px}
+.usage-guide ul{padding-inline-start:18px}
+.usage-guide li+li{margin-top:6px}
