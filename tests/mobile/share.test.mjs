@@ -262,3 +262,47 @@ test('one display menu restores all accounts and uncommon cheer values remain ed
   await preset.selectOption('');
   assert.equal(await custom.inputValue(), '');
 });
+
+for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
+  test(`monthly actuals open daily input directly and keep the selected date (${viewport.width}×${viewport.height})`, async t => {
+    const page = await openMobile(t, viewport);
+    const month = await page.locator('#month').inputValue();
+    await page.evaluate(month => {
+      const book=window.pocolog.getBook();
+      book.months[month]={columns:['こた','もえ'],rows:[
+        {name:'ライバーA',memo:'',values:['','']},
+        {name:'ライバーB',memo:'',values:['','']}
+      ]};
+      window.pocolog.setBook(book);
+    },month);
+    await page.locator('#monthViewActual').tap();
+    const openLiver = name => page.getByRole('button',{name:`ライバー ${name}の日数・時間`,exact:true}).tap();
+    await openLiver('ライバーA');
+    assert.equal(await page.locator('#actualAccountDialog').isVisible(),false);
+    assert.match(await page.locator('#coinDialogTitle').textContent(),/ライバーA × こた/);
+    assert.equal(await page.locator('#actualEntryShortcut').isVisible(),false);
+    if(viewport.height>400)await assertFits(page,page.locator('#actualRangeStart'),48);
+    const initialDate=await page.locator('#entityCalendar [aria-pressed=true]').getAttribute('data-date');
+    const direction=initialDate.endsWith('-01')?'Next':'Previous';
+    await page.locator('#actual'+direction+'Day').tap();
+    const chosenDate=await page.locator('#entityCalendar [aria-pressed=true]').getAttribute('data-date');
+    assert.notEqual(chosenDate,initialDate);
+    await page.locator('#pairAccountSelect').selectOption('1');
+    assert.equal(await page.locator('#entityCalendar [aria-pressed=true]').getAttribute('data-date'),chosenDate);
+    await page.locator('#actualRangeStart').fill('09:00');
+    await page.locator('#actualRangeEnd').fill('09:45');
+    await page.locator('#applyActualRange').tap();
+    assert.equal(await page.evaluate(({month,chosenDate})=>window.pocolog.getBook().months[month].rows[0].pairActuals[1].actuals[chosenDate].minutes,{month,chosenDate}),45);
+    await page.locator('#nextPairLiver').tap();
+    assert.match(await page.locator('#coinDialogTitle').textContent(),/ライバーB × もえ/);
+    assert.equal(await page.locator('#entityCalendar [aria-pressed=true]').getAttribute('data-date'),chosenDate);
+    await page.locator('#backToActualGroup').tap();
+    assert.match(await page.locator('#actualAccountTitle').textContent(),/ライバーB/);
+    await page.locator('#actualAccountClose').tap();
+    await openLiver('ライバーA');
+    assert.match(await page.locator('#coinDialogTitle').textContent(),/ライバーA × もえ/);
+    await page.locator('#coinDialogClose').tap();
+    await page.reload();
+    assert.equal(await page.evaluate(({month,chosenDate})=>window.pocolog.getBook().months[month].rows[0].pairActuals[1].actuals[chosenDate].minutes,{month,chosenDate}),45);
+  });
+}
