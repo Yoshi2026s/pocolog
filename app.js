@@ -58,14 +58,13 @@ function setFocusedAccount(index){
  focusedAccount=index;closeCheerPicker();closeScheduleEditor();applyAccountView();$('grid').parentElement.scrollLeft=0;$('viewControls').open=false;
  $('viewControlsSummary').focus({preventScroll:true});requestAnimationFrame(fitTableViewport);
 }
-$('backToAllAccounts').onclick=()=>setFocusedAccount(null);
 function applyAccountView(){
  if(focusedAccount!==null&&(focusedAccount<0||focusedAccount>=data.columns.length))focusedAccount=null;
  const focused=focusedAccount!==null,panel=$('tablePanel');panel.classList.toggle('account-focused',focused);panel.classList.toggle('roomy-view',roomyView);
  $('grid').style.setProperty('--account-count',focused?1:data.columns.length);
  for(const row of $('grid').rows)for(let j=0;j<data.columns.length;j++)if(row.cells[j+3])row.cells[j+3].hidden=focused&&j!==focusedAccount;
  $('viewControlsSummary').textContent=focused?`表示：${data.columns[focusedAccount]}`:'表示';
- $('roomyView').setAttribute('aria-pressed',String(roomyView));$('backToAllAccounts').hidden=!focused;$('timeViewNote').textContent=focused&&!roomyView?'日数 ／ 時間（時:分）　各欄を押して編集':'上：日数 ／ 下：時間（時:分）　各欄を押して編集';
+ $('roomyView').setAttribute('aria-pressed',String(roomyView));$('timeViewNote').textContent=focused&&!roomyView?'日数 ／ 時間（時:分）　各欄を押して編集':'上：日数 ／ 下：時間（時:分）　各欄を押して編集';
  const choices=$('accountViewChoices');choices.replaceChildren();
  for(const [index,name] of [[null,'全アカウント'],...data.columns.map((name,index)=>[index,name])]){
   const button=document.createElement('button');button.type='button';button.textContent=name;button.setAttribute('aria-pressed',String(focusedAccount===index));button.onclick=()=>setFocusedAccount(index);choices.append(button);
@@ -475,7 +474,7 @@ function showPairActual(row,index,returnGroup=null){
  $('coinDialogTitle').textContent=`${row.name} × ${account}`;$('coinDialogMonth').textContent=`${book.currentMonth} ／ アカウント別実績`;
  openEntityPlanner({kind:'pair',row,index,month:book.currentMonth,table,isCurrent:()=>table===data&&data.rows.includes(row)&&data.columns[index]===account});
  $('previousPairLiver').disabled=data.rows.indexOf(row)===0;$('nextPairLiver').disabled=data.rows.indexOf(row)===data.rows.length-1;$('pairPosition').textContent=`${data.rows.indexOf(row)+1} / ${data.rows.length}`;
- updatePairGoalProgress();pairOpeningCheer=entityDetails().cheerK??null;$('undoPairCheer').hidden=true;$('clearPairCheer').disabled=pairOpeningCheer===null;$('pairCurrentCheer').value=pairOpeningCheer??'';$('pairCurrentCheer').setAttribute('aria-invalid','false');syncPairCheerSelect();$('pairCheerError').textContent='';updateOverlayViewport();$('coinDialog').showModal();$('coinDialog').scrollTop=0;
+ updatePairGoalProgress();pairOpeningCheer=entityDetails().cheerK??null;$('undoPairCheer').hidden=true;$('pairCheerCustom').open=false;$('pairCurrentCheer').value=pairOpeningCheer??'';$('pairCurrentCheer').setAttribute('aria-invalid','false');syncPairCheerSelect();$('pairCheerError').textContent='';updateOverlayViewport();$('coinDialog').showModal();$('coinDialog').scrollTop=0;
 }
 function updatePairGoalProgress(){
  if(currentEntity?.kind!=='pair'||!currentEntity.isCurrent())return;
@@ -490,14 +489,14 @@ function movePairLiver(offset){
  const index=data.rows.indexOf(currentEntity.row)+offset,row=data.rows[index];if(!row)return;
  if(!canNavigateActualEntry())return;
  const account=currentEntity.index,date=currentEntity.date,returnGroup=pairReturnGroup;$('coinDialog').close();showPairActual(row,account,returnGroup);if(date)selectEntityDay(date);
- if(monthView==='time')focusActualEditor();else $('pairCurrentCheer').focus({preventScroll:true});
+ if(monthView==='time')focusActualEditor();else $('pairCheerSelect').focus({preventScroll:true});
 }
 $('previousPairLiver').onclick=()=>movePairLiver(-1);$('nextPairLiver').onclick=()=>movePairLiver(1);
 function canNavigateActualEntry(){
  if(!isActualContext())return true;
  const cheer=$('pairCurrentCheer');
  let invalid;
- if(currentEntity.kind==='pair'&&!cheer.validity.valid){cheer.setAttribute('aria-invalid','true');$('pairCheerError').textContent='0以上の獲得エールを入力してください。';invalid=cheer;}
+ if(currentEntity.kind==='pair'&&!cheer.validity.valid){$('pairCheerCustom').open=true;cheer.setAttribute('aria-invalid','true');$('pairCheerError').textContent='0以上の獲得エールを入力してください。';invalid=cheer;}
  else invalid=invalidActualDayInput();
  if(invalid){revealPlannerElement(invalid);return false;}
  return true;
@@ -511,8 +510,8 @@ $('pairAccountSelect').onchange=()=>{
  if(monthView==='time')focusActualEditor();else $('pairAccountSelect').focus({preventScroll:true});
 };
 $('pairCurrentCheer').addEventListener('input',()=>{
- if(currentEntity?.kind!=='pair')return;const input=$('pairCurrentCheer');input.setAttribute('aria-invalid',String(!input.validity.valid));$('undoPairCheer').hidden=input.value===String(pairOpeningCheer??'');$('clearPairCheer').disabled=input.value==='';if(!input.validity.valid){$('pairCheerError').textContent='0以上の獲得エールを入力してください。';return;}
- const entity=entityDetails(true);if(!entity)return;entity.cheerK=input.value===''?null:Number(input.value);syncPairCheerSelect();$('undoPairCheer').hidden=entity.cheerK===pairOpeningCheer;$('clearPairCheer').disabled=entity.cheerK===null;$('pairCheerError').textContent='';updateActualTotals();stats();plannerSaved('現時点の獲得エールを保存しました。');
+ if(currentEntity?.kind!=='pair')return;const input=$('pairCurrentCheer');input.setAttribute('aria-invalid',String(!input.validity.valid));$('undoPairCheer').hidden=input.value===String(pairOpeningCheer??'');if(!input.validity.valid){$('pairCheerError').textContent='0以上の獲得エールを入力してください。';return;}
+ const entity=entityDetails(true);if(!entity)return;entity.cheerK=input.value===''?null:Number(input.value);syncPairCheerSelect();$('undoPairCheer').hidden=entity.cheerK===pairOpeningCheer;$('pairCheerError').textContent='';updateActualTotals();stats();plannerSaved('現時点の獲得エールを保存しました。');
 });
 $('backToActualGroup').onclick=()=>{
  if(!pairReturnGroup||!currentEntity?.isCurrent())return;
@@ -531,7 +530,6 @@ function syncPairCheerSelect(){
 }
 $('pairCheerSelect').onchange=()=>setPairCheer($('pairCheerSelect').value===''?null:Number($('pairCheerSelect').value));
 $('undoPairCheer').onclick=()=>setPairCheer(pairOpeningCheer);
-$('clearPairCheer').onclick=()=>setPairCheer(null);
 $('finishPairEntry').onclick=()=>{
  if(currentEntity?.kind!=='pair'||!canNavigateActualEntry())return;
  revealPlannerElement($('pairGoalSummary'));
@@ -630,7 +628,7 @@ $('applyActualBulk').onclick=()=>{
  if(!isActualContext())return;
  try{const options=actualBulkOptions(),signature=JSON.stringify(options);if(signature===actualBulkAppliedSignature)return;
   const result=PocoCalendar.bulkActuals(entityDetails().actuals,currentEntity.month,options);if(!result.applied.length)return;
-  applyActualAction(result.next,`${result.applied.length}日分を反映しました。エール・予定は変更していません。`);actualBulkAppliedSignature=signature;lastActualAction.bulk=true;updateActualTools();
+  applyActualAction(result.next,`${result.applied.length}日分を反映しました。エール・予定は変更していません。`);actualBulkAppliedSignature=signature;updateActualTools();
  }catch(error){$('actualBulkPreview').textContent=error.message;}
 };
 function currentMissingActualDates(){
@@ -638,7 +636,6 @@ function currentMissingActualDates(){
  const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  return PocoCalendar.missingActualDates(entity,currentEntity.month,today);
 }
-$('undoActualBulk').onclick=()=>undoActualDay(false);
 $('findMissingActual').onclick=()=>{
  const missing=currentMissingActualDates();if(!missing.length)return;
  if(selectEntityDay(missing.find(date=>date>currentEntity.date)||missing[0]))focusActualEditor();
@@ -652,7 +649,7 @@ function updateActualTools(){
  $('actualMinus15').disabled=!(value?.minutes>0);$('clearActualDay').disabled=!value;
  const canUndo=lastActualAction&&lastActualAction.row===entity&&lastActualAction.table===data&&JSON.stringify(entity.actuals||{})===JSON.stringify(lastActualAction.after);
  const invalidDraft=hasInvalidActualDayDraft();
- $('undoActualAction').hidden=!canUndo&&!invalidDraft;$('undoActualAction').textContent=invalidDraft?'未保存の入力を戻す':'直前の操作を元に戻す';$('undoActualBulk').hidden=!(canUndo&&lastActualAction.bulk);
+ $('undoActualAction').hidden=!canUndo&&!invalidDraft;$('undoActualAction').textContent=invalidDraft?'未保存の入力を戻す':'直前の操作を元に戻す';
  const missing=currentMissingActualDates();$('actualMissingInfo').textContent=`今日までの未記録候補 ${missing.length}日（予定あり・未記録、または時間未入力）`;$('findMissingActual').disabled=!missing.length;previewActualBulk();
 }
 function applyActualAction(next,message){
@@ -685,9 +682,9 @@ function hasInvalidActualDayDraft(){
  const hours=$('actualHours'),minutes=$('actualMinutes'),inputs=currentEntity?.kind==='pair'?[hours,minutes]:[hours,minutes,$('actualCheer')];
  return inputs.some(input=>!input.validity.valid)||Number(hours.value||0)*60+Number(minutes.value||0)>1440;
 }
-function undoActualDay(restoreDraft=true){
+function undoActualDay(){
  const entity=entityDetails(),action=lastActualAction;if(!isActualContext()||!entity)return;
- if(restoreDraft&&hasInvalidActualDayDraft()){
+ if(hasInvalidActualDayDraft()){
   loadActualDay(entity,currentEntity.date);lastActualAction=action;updateActualTools();
   $('plannerStatus').textContent='未保存の入力を保存済みの値へ戻しました。';focusActualEditor();return;
  }
@@ -863,7 +860,15 @@ function selectTodayPlanDay(){
  if(date.startsWith(currentEntity.month+'-'))return selectEntityDay(date);
 }
 function openEntityPlanner(target){
- currentEntity=target;$('actualDayHelp').textContent=target.kind==='pair'?'時間が0より大きいと日数にも数えます。1日24時間以内です。獲得エールは上の現時点の合計欄で記録します。「元に戻す」は日付を切り替えるまで使えます。':'空欄は未記入、0は実績0です。時間・エールが0より大きいと日数にも数えます。1日24時間以内です。「元に戻す」は日付を切り替えるまで使えます。';$('actualSummaryNote').textContent=target.kind==='pair'?'日数・時間は日別の合計、エールは現時点の入力値です。':target.kind==='liver'?'以前のライバー単位の実績です。アカウント別の実績は月実績の各欄から記録できます。':'日別に入力した実績の合計です。';$('actualEntryShortcut').hidden=!isActualContext();$('actualHistory').open=false;$('liverActualSummary').hidden=!isActualContext();$('liverActualEditor').hidden=!isActualContext();const entity=entityDetails();$('entityMemo').value=entity?.memo||'';$('plannerStatus').textContent='';
+ currentEntity=target;
+ const actual=isActualContext(),pair=target.kind==='pair';
+ $('planDayNavigation').hidden=actual;
+ $('actualDayHelp').textContent=pair?'0分を超えると日数にも数えます。':'時間やエールが0を超えると日数にも数えます。';
+ $('actualSummaryNote').textContent=pair?'日数・時間は今月の合計です。':'ライバー単位の旧記録です。';
+ $('actualEntryShortcut').hidden=!actual;$('actualHistory').open=false;
+ $('liverActualSummary').hidden=!actual;$('liverActualEditor').hidden=!actual;
+ const entity=entityDetails();$('entityMemo').value=entity?.memo||'';$('plannerStatus').textContent='';
+
  const japanDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  selectEntityDay(japanDate.startsWith(target.month+'-')?japanDate:target.month+'-01');
  document.querySelector('.entity-breakdown').open=false;if(isActualContext())resetActualBulk();
