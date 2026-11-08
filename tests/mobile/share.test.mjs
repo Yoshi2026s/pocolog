@@ -326,7 +326,7 @@ test('goal and actual cells keep their independent group colors through row high
     };
     window.pocolog.setBook(book);
   });
-  const green = 'rgb(227, 242, 231)';
+  const pink = 'rgb(252, 228, 239)';
   const blue = 'rgb(227, 239, 252)';
   const assertColors = async () => {
     const rows = await page.locator('#grid tbody tr').evaluateAll(rows => rows.map(row => ({
@@ -334,10 +334,10 @@ test('goal and actual cells keep their independent group colors through row high
       colors: Array.from(row.cells).slice(3, 8).map(td => getComputedStyle(td).backgroundColor)
     })));
     assert.deepEqual(rows.map(row => row.groups), ['2', '1', '1 2']);
-    assert.deepEqual(rows.map(row => row.colors.map(color => [green, blue].includes(color) ? color : null)), [
-      [green, null, green, blue, blue],
-      [green, green, green, blue, null],
-      [green, green, green, blue, blue]
+    assert.deepEqual(rows.map(row => row.colors.map(color => [pink, blue].includes(color) ? color : null)), [
+      [pink, null, pink, blue, blue],
+      [pink, pink, pink, blue, null],
+      [pink, pink, pink, blue, blue]
     ]);
   };
   const highlight = async (kind, state) => {
