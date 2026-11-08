@@ -306,3 +306,54 @@ for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
     assert.equal(await page.evaluate(({month,chosenDate})=>window.pocolog.getBook().months[month].rows[0].pairActuals[1].actuals[chosenDate].minutes,{month,chosenDate}),45);
   });
 }
+
+test('goal and actual cells keep their independent group colors through row highlights', async t => {
+  const page = await openMobile(t, { width: 390, height: 844 });
+  await page.evaluate(() => {
+    const book = window.pocolog.getBook();
+    const date = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+    const month = date.slice(0, 7);
+    book.currentMonth = month;
+    book.months[month] = {
+      columns: ['こじ', 'こた', 'もえ', '別アカウントA', '別アカウントB'],
+      rows: [[5, 4, 6, 5, 6], [5, 5, 6, 5, 4], [5, 5, 5, 5, 5]].map((actuals, index) => ({
+        name: `ライバー${index + 1}`, memo: '', releaseDate: date.slice(-2),
+        values: actuals.map(() => '5'),
+        pairActuals: actuals.map(cheerK => ({ cheerK, memo: '' }))
+      }))
+    };
+    window.pocolog.setBook(book);
+  });
+  const green = 'rgb(227, 242, 231)';
+  const blue = 'rgb(227, 239, 252)';
+  const assertColors = async () => {
+    const rows = await page.locator('#grid tbody tr').evaluateAll(rows => rows.map(row => ({
+      groups: row.dataset.metGroups,
+      colors: Array.from(row.cells).slice(3, 8).map(td => getComputedStyle(td).backgroundColor)
+    })));
+    assert.deepEqual(rows.map(row => row.groups), ['2', '1', '1 2']);
+    assert.deepEqual(rows.map(row => row.colors.map(color => [green, blue].includes(color) ? color : null)), [
+      [green, null, green, blue, blue],
+      [green, green, green, blue, null],
+      [green, green, green, blue, blue]
+    ]);
+  };
+  const highlight = async (kind, state) => {
+    await page.locator('#colorControls summary').tap();
+    await page.locator(`[data-${kind}-highlight="${state}"]`).tap();
+  };
+  await assertColors();
+  await highlight('achievement', 'met');
+  await assertColors();
+  await highlight('achievement', 'unmet');
+  await assertColors();
+  await highlight('release', 'today');
+  assert.equal(await page.locator('#grid tbody tr[data-release-match=today]').count(), 3);
+  await assertColors();
+  await page.locator('#monthViewActual').tap();
+  await assertColors();
+  await page.reload();
+  await assertColors();
+});
