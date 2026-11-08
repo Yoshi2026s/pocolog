@@ -244,7 +244,7 @@ function cheerSelect(value,label,onchange,{actual=false,onDetails=null}={}){
    option.onclick=()=>{if(onchange(choice)!==false){trigger.textContent=choice;save();stats();}closeCheerPicker(true);};
    list.append(option);return option;
   });
-  if(onDetails){const details=document.createElement('button');details.type='button';details.className='cheer-picker-details';details.textContent='日数・時間・詳細入力';details.onclick=()=>{closeCheerPicker(true);onDetails();};cheerPicker.append(details);}
+  if(onDetails){const details=document.createElement('button');details.type='button';details.className='cheer-picker-details';details.textContent='日数・時間を入力';details.onclick=()=>{closeCheerPicker(true);onDetails();};cheerPicker.append(details);}
   cheerPicker.onkeydown=event=>{
    const index=options.indexOf(document.activeElement);let next;
    if(event.key==='ArrowDown')next=Math.min(options.length-1,index+1);
@@ -405,7 +405,15 @@ function nameControls(name,label,show){
  wrapper.append(button);return wrapper;
 }
 
+const dailyEditorHome=document.createComment('日別実績の通常位置');
+$('liverActualEditor').before(dailyEditorHome);
+function positionDailyEditor(first){
+ const editor=$('liverActualEditor');
+ if(first)$('pairCheerEditor').before(editor);
+ else dailyEditorHome.after(editor);
+}
 function showCoinDialog(kind,index){
+ positionDailyEditor(false);
  $('pairAccountNavigation').hidden=true;
  $('coinDialog').classList.remove('pair-actual','actual-account');$('pairCheerEditor').hidden=true;
  const isAccount=kind==='account';
@@ -455,26 +463,47 @@ function showActualGroup(title,label,entries,legacyIndex=null){
  $('openLegacyLiverActual').hidden=legacyIndex===null||!Object.keys(data.rows[legacyIndex]?.actuals||{}).length;
  $('openLegacyLiverActual').onclick=()=>{$('actualAccountDialog').close();showCoinDialog('liver',legacyIndex);};
  let sum=0,known=0;const table=$('actualAccountTable');table.replaceChildren();const head=table.createTHead().insertRow();for(const text of [label,'獲得エール（K）','日数・時間'])cell(head,'th').textContent=text;
- const body=table.createTBody();for(const entry of entries){const {row,index,name}=entry,pair=PocoCalendar.pairDetails(data,row,index),total=PocoCalendar.actualTotals(pair),tr=body.insertRow(),button=document.createElement('button');button.type='button';button.textContent=name;button.onclick=()=>{const scroll=$('actualAccountDialog').scrollTop;$('actualAccountDialog').close();showPairActual(row,index,{title,label,entries,legacyIndex,scroll});};cell(tr).append(button);cell(tr).textContent=pair.cheerK===null?'未記録':fmt(pair.cheerK);cell(tr).textContent=total.records?`${total.days}日 ／ ${total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'時間未記録'}`:'未記録';if(pair.cheerK!==null){sum+=pair.cheerK;known++;}}
+ const body=table.createTBody();for(const entry of entries){const {row,index,name}=entry,pair=PocoCalendar.pairDetails(data,row,index),total=PocoCalendar.actualTotals(pair),tr=body.insertRow(),button=document.createElement('button');button.type='button';button.textContent=name;button.onclick=()=>{const scroll=$('actualAccountDialog').scrollTop;$('actualAccountDialog').close();showPairActual(row,index,{title,label,entries,legacyIndex,scroll},monthView==='actual'&&legacyIndex!==null);};cell(tr).append(button);cell(tr).textContent=pair.cheerK===null?'未記録':fmt(pair.cheerK);cell(tr).textContent=total.records?`${total.days}日 ／ ${total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'時間未記録'}`:'未記録';if(pair.cheerK!==null){sum+=pair.cheerK;known++;}}
  $('actualAccountTotal').textContent=known?fmt(sum):'未記録';updateOverlayViewport();$('actualAccountDialog').showModal();$('actualAccountDialog').scrollTop=0;
 }
 function showActualAccount(index){showActualGroup(`${data.columns[index]}の獲得実績`,'ライバー',data.rows.map(row=>({row,index,name:row.name})));}
-function showActualLiver(index){const row=data.rows[index];showActualGroup(`${row.name}のアカウント別実績`,'アカウント',data.columns.map((name,col)=>({row,index:col,name})),index);}
+function liverActualGroup(index){
+ const row=data.rows[index];
+ return {title:`${row.name}のアカウント別実績`,label:'アカウント',
+  entries:data.columns.map((name,col)=>({row,index:col,name})),legacyIndex:index,scroll:0};
+}
+let lastDailyAccount=null;
+function showActualLiver(index){
+ const group=liverActualGroup(index);
+ if(monthView==='actual'&&data.columns.length){
+  const recent=data.columns.indexOf(lastDailyAccount);
+  showPairActual(data.rows[index],focusedAccount??(recent<0?0:recent),group,true);
+ }else showActualGroup(group.title,group.label,group.entries,group.legacyIndex);
+}
 $('actualAccountClose').onclick=()=>$('actualAccountDialog').close();
-let pairReturnGroup=null,pairOpeningCheer=null;
-function showPairActual(row,index,returnGroup=null){
- pairReturnGroup=returnGroup;$('backToActualGroup').hidden=!returnGroup;
+let pairReturnGroup=null,pairOpeningCheer=null,pairOpensDaily=false;
+function showPairActual(row,index,returnGroup=null,daily=monthView==='time',date=null){
+ const quickDaily=daily&&monthView==='actual';
+ pairOpensDaily=daily;
+ pairReturnGroup=returnGroup;
+ $('backToActualGroup').hidden=!returnGroup;
+ $('backToActualGroup').textContent=returnGroup?.legacyIndex!=null?'アカウント別一覧':'一覧へ';
  const account=data.columns[index],table=data;
+ if(quickDaily)lastDailyAccount=account;
+ positionDailyEditor(quickDaily);
  $('pairAccountNavigation').hidden=false;
- if(monthView==='time')$('liverActualEditor').querySelector('.day-navigation').before($('pairAccountNavigation'));
+ if(daily)$('liverActualEditor').querySelector('.day-navigation').before($('pairAccountNavigation'));
  else $('pairCheerEditor').before($('pairAccountNavigation'));
  const accounts=$('pairAccountSelect');accounts.replaceChildren();
  data.columns.forEach((name,column)=>{const option=document.createElement('option');option.value=String(column);option.textContent=name||'（未設定）';accounts.append(option);});accounts.value=String(index);
  $('coinDialog').classList.remove('actual-account');$('coinDialog').classList.add('pair-actual');$('pairCheerEditor').hidden=false;
  $('coinDialogTitle').textContent=`${row.name} × ${account}`;$('coinDialogMonth').textContent=`${book.currentMonth} ／ アカウント別実績`;
- openEntityPlanner({kind:'pair',row,index,month:book.currentMonth,table,isCurrent:()=>table===data&&data.rows.includes(row)&&data.columns[index]===account});
+ openEntityPlanner({kind:'pair',row,index,month:book.currentMonth,table,isCurrent:()=>table===data&&data.rows.includes(row)&&data.columns[index]===account},date);
+ if(quickDaily)$('actualEntryShortcut').hidden=true;
  $('previousPairLiver').disabled=data.rows.indexOf(row)===0;$('nextPairLiver').disabled=data.rows.indexOf(row)===data.rows.length-1;$('pairPosition').textContent=`${data.rows.indexOf(row)+1} / ${data.rows.length}`;
  updatePairGoalProgress();pairOpeningCheer=entityDetails().cheerK??null;$('undoPairCheer').hidden=true;$('pairCheerCustom').open=false;$('pairCurrentCheer').value=pairOpeningCheer??'';$('pairCurrentCheer').setAttribute('aria-invalid','false');syncPairCheerSelect();$('pairCheerError').textContent='';updateOverlayViewport();$('coinDialog').showModal();$('coinDialog').scrollTop=0;
+ if(quickDaily){$('liverActualEditor').tabIndex=-1;$('liverActualEditor').focus({preventScroll:true});}
+ else if(daily)focusActualEditor();
 }
 function updatePairGoalProgress(){
  if(currentEntity?.kind!=='pair'||!currentEntity.isCurrent())return;
@@ -488,8 +517,10 @@ function movePairLiver(offset){
  if(currentEntity?.kind!=='pair'||!currentEntity.isCurrent())return;
  const index=data.rows.indexOf(currentEntity.row)+offset,row=data.rows[index];if(!row)return;
  if(!canNavigateActualEntry())return;
- const account=currentEntity.index,date=currentEntity.date,returnGroup=pairReturnGroup;$('coinDialog').close();showPairActual(row,account,returnGroup);if(date)selectEntityDay(date);
- if(monthView==='time')focusActualEditor();else $('pairCheerSelect').focus({preventScroll:true});
+ const account=currentEntity.index,date=currentEntity.date;
+ const returnGroup=pairReturnGroup?.legacyIndex!=null?liverActualGroup(index):pairReturnGroup;
+ $('coinDialog').close();showPairActual(row,account,returnGroup,pairOpensDaily,date);
+ if(!pairOpensDaily)$('pairCheerSelect').focus({preventScroll:true});
 }
 $('previousPairLiver').onclick=()=>movePairLiver(-1);$('nextPairLiver').onclick=()=>movePairLiver(1);
 function canNavigateActualEntry(){
@@ -506,8 +537,8 @@ $('pairAccountSelect').onchange=()=>{
  const index=Number($('pairAccountSelect').value);if(!Number.isInteger(index)||index<0||index>=data.columns.length)return;
  if(!canNavigateActualEntry()){$('pairAccountSelect').value=String(currentEntity.index);return;}
  const row=currentEntity.row,date=currentEntity.date,returnGroup=pairReturnGroup;
- $('coinDialog').close();showPairActual(row,index,returnGroup);if(date)selectEntityDay(date);
- if(monthView==='time')focusActualEditor();else $('pairAccountSelect').focus({preventScroll:true});
+ $('coinDialog').close();showPairActual(row,index,returnGroup,pairOpensDaily,date);
+ if(!pairOpensDaily)$('pairAccountSelect').focus({preventScroll:true});
 };
 $('pairCurrentCheer').addEventListener('input',()=>{
  if(currentEntity?.kind!=='pair')return;const input=$('pairCurrentCheer');input.setAttribute('aria-invalid',String(!input.validity.valid));$('undoPairCheer').hidden=input.value===String(pairOpeningCheer??'');if(!input.validity.valid){$('pairCheerError').textContent='0以上の獲得エールを入力してください。';return;}
@@ -859,7 +890,7 @@ function selectTodayPlanDay(){
  const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  if(date.startsWith(currentEntity.month+'-'))return selectEntityDay(date);
 }
-function openEntityPlanner(target){
+function openEntityPlanner(target,date=null){
  currentEntity=target;
  const actual=isActualContext(),pair=target.kind==='pair';
  $('planDayNavigation').hidden=actual;
@@ -870,7 +901,7 @@ function openEntityPlanner(target){
  const entity=entityDetails();$('entityMemo').value=entity?.memo||'';$('plannerStatus').textContent='';
 
  const japanDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
- selectEntityDay(japanDate.startsWith(target.month+'-')?japanDate:target.month+'-01');
+ selectEntityDay(date||(japanDate.startsWith(target.month+'-')?japanDate:target.month+'-01'));
  document.querySelector('.entity-breakdown').open=false;if(isActualContext())resetActualBulk();
 }
 function plannerSaved(message=''){
@@ -994,10 +1025,10 @@ function render(){
  if(monthView==='goal'){cell(head,'th','extra-col').textContent='合計（K）';cell(head,'th','extra-col').textContent='必要コイン';}cell(head,'th','extra-col').textContent='メモ';
  const body=table.createTBody();
  data.rows.forEach((r,i)=>{
-  const tr=body.insertRow();const nameCell=cell(tr,'td','name');nameCell.append(nameControls(r.name,'ライバー',()=>monthView!=='goal'?showActualLiver(i):showCoinDialog('liver',i)));attachRowDrag(nameCell.querySelector('button'),r,tr);if(monthView!=='goal')nameCell.querySelector('button').setAttribute('aria-label',`ライバー ${r.name}の${monthView==='time'?'日数・時間':'獲得実績'}`);
+  const tr=body.insertRow();const nameCell=cell(tr,'td','name');nameCell.append(nameControls(r.name,'ライバー',()=>monthView!=='goal'?showActualLiver(i):showCoinDialog('liver',i)));attachRowDrag(nameCell.querySelector('button'),r,tr);if(monthView!=='goal')nameCell.querySelector('button').setAttribute('aria-label',`ライバー ${r.name}の日数・時間`);
   cell(tr,'td','closing-col').append(scheduleField(r,'closingTime','締め'));cell(tr,'td','release-col').append(scheduleField(r,'releaseDate','解禁日'));
   if(monthView!=='goal'){
-   data.columns.forEach((account,j)=>{const td=cell(tr),pair=PocoCalendar.pairDetails(data,r,j),button=monthView==='actual'?cheerSelect(pair.cheerK===null?'':String(pair.cheerK),`${r.name}・${account}の実績を選択`,value=>changeActualCheer(r,j,value),{actual:true,onDetails:()=>showPairActual(r,j)}):document.createElement('button');button.type='button';button.classList.add('cheer-field','pair-actual-cell');if(monthView==='time')button.classList.add('pair-time-cell');button.dataset.actualAccount=j;paintPairActualCell(button,pair);button.title=`${r.name} × ${account}：${monthView==='actual'?'数字を選択。日数・時間は詳細入力から':'日数・時間を記録'}`;if(monthView==='time'){button.setAttribute('aria-label',`${r.name}・${account}の日数・時間を編集`);button.onclick=()=>{showPairActual(r,j);focusActualEditor();};}td.append(button);});
+   data.columns.forEach((account,j)=>{const td=cell(tr),pair=PocoCalendar.pairDetails(data,r,j),button=monthView==='actual'?cheerSelect(pair.cheerK===null?'':String(pair.cheerK),`${r.name}・${account}の実績を選択`,value=>changeActualCheer(r,j,value),{actual:true,onDetails:()=>showPairActual(r,j,liverActualGroup(i),true)}):document.createElement('button');button.type='button';button.classList.add('cheer-field','pair-actual-cell');if(monthView==='time')button.classList.add('pair-time-cell');button.dataset.actualAccount=j;paintPairActualCell(button,pair);button.title=`${r.name} × ${account}：${monthView==='actual'?'数字を選択。日数・時間は詳細入力から':'日数・時間を記録'}`;if(monthView==='time'){button.setAttribute('aria-label',`${r.name}・${account}の日数・時間を編集`);button.onclick=()=>showPairActual(r,j);}td.append(button);});
   }else{
   r.values.forEach((v,j)=>{
    const td=cell(tr);td.append(cheerSelect(v,`${r.name}・${data.columns[j]}`,v=>changeCheer(r,j,v)));
