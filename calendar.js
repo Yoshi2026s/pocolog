@@ -22,7 +22,7 @@
   function validAccounts(table, month) {
     return table.accountDetails === undefined || (Array.isArray(table.accountDetails)
       && table.accountDetails.length === table.columns.length
-      && table.accountDetails.every(item => item && typeof item.memo === 'string' && validSchedule(item.schedule, month)));
+      && table.accountDetails.every(item => item && typeof item.memo === 'string' && (item.group === undefined || item.group === 1 || item.group === 2) && validSchedule(item.schedule, month)));
   }
   function accountDetails(table, index, create = false) {
     if (table.accountDetails) return table.accountDetails[index];

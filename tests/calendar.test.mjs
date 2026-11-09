@@ -119,3 +119,14 @@ test('copy viewing time to selected accounts without replacing other records',()
  assert.throws(()=>PocoCalendar.copyViewingTime(table,row,0,[1,4],date,month));
  assert.throws(()=>PocoCalendar.copyViewingTime(table,row,0,[1],other,month));
 });
+
+test('account group metadata survives JSON and rejects unsupported groups', () => {
+ const table={columns:['A','B'],accountDetails:[{memo:'保持',group:1},{memo:'',group:2}]};
+ assert.equal(validAccounts(JSON.parse(JSON.stringify(table)),'2026-11'),true);
+ for(const value of [0,3,'1',null]){
+  table.accountDetails[0].group=value;
+  assert.equal(validAccounts(table,'2026-11'),false);
+ }
+ delete table.accountDetails[0].group;
+ assert.equal(validAccounts(table,'2026-11'),true);
+});

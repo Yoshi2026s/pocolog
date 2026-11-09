@@ -72,12 +72,13 @@
     }
     return {state:targets===0?null:completed===targets?'met':'unmet',targets,completed};
   }
-  function achievementGroup(name){
+  function achievementGroup(name, details){
+    if(details?.group===1||details?.group===2)return details.group;
     return ['こた','こじ','もえ'].includes(String(name??'').trim())?1:2;
   }
-  function groupAchievements(row, columns){
+  function groupAchievements(row, columns, details=[]){
     const indices=[[],[]];
-    columns.forEach((name,index)=>indices[achievementGroup(name)-1].push(index));
+    columns.forEach((name,index)=>indices[achievementGroup(name,details?.[index])-1].push(index));
     return indices.map(group=>achievementState(row,group));
   }
   globalThis.PocoRows = Object.freeze({ closingKey, releaseKey, formatRelease, addExtraAccounts, releaseState, targetState, achievementState, achievementGroup, groupAchievements, sortRows, moveRow });

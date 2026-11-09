@@ -96,3 +96,14 @@ test('account groups reach their targets independently after column reorder',()=
  row.values[0]='';
  assert.deepEqual(PocoRows.groupAchievements(row,columns).map(group=>group.state),['met',null]);
 });
+
+test('explicit account groups override names and drive achievement checks', () => {
+ const columns=['自由な名前','こじ'];
+ const details=[{group:1},{group:2}];
+ const row={values:['5','10'],pairActuals:[{cheerK:5},{cheerK:0}]};
+ assert.equal(PocoRows.achievementGroup(columns[0],details[0]),1);
+ assert.equal(PocoRows.achievementGroup(columns[1],details[1]),2);
+ assert.deepEqual(PocoRows.groupAchievements(row,columns,details).map(group=>group.state),['met','unmet']);
+ assert.equal(PocoRows.achievementGroup('こた'),1);
+ assert.equal(PocoRows.achievementGroup('別アカウント'),2);
+});

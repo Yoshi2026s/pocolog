@@ -363,6 +363,17 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 .actual-picker-wide .cheer-picker-jumps{grid-template-columns:repeat(7,minmax(0,1fr))}
 .actual-picker-wide .cheer-picker-jumps button{font-size:17px}
 #grid button.cheer-field,.cheer-picker button{-webkit-tap-highlight-color:transparent}
+#accountEditor{width:min(440px,calc(var(--visible-width,100vw) - 20px));max-height:calc(var(--visible-height,100dvh) - 20px)}
+#accountEditor button{min-height:48px}
+.account-group-options{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;min-width:0}
+.account-group-options legend{font-size:14px}
+.account-group-options label{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px;border-radius:8px;font-size:16px}
+.account-group-options input{width:20px;height:20px;flex:none;margin:0}
+.account-group-options [data-group="1"]{background:var(--goal-group-1)}
+.account-group-options [data-group="2"]{background:var(--goal-group-2)}
+#deleteAccount{color:#9b392e;border-color:#dfb7b1}
+#deleteAccount[hidden],#manageActualAccount[hidden]{display:none}
+#bottomMenus .primary-tools #addCol{min-height:48px;min-width:58px}
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){
  dialog button,dialog summary,#scheduleClose,#closingTimeInput [role=option]{min-height:44px}
  dialog input:not([type=checkbox]):not([type=radio]),dialog textarea,dialog select{font-size:16px}

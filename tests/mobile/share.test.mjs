@@ -520,3 +520,71 @@ test('actual adjustments protect zero, decimal values, and the upper limit', asy
   assert.equal(await read(), 1e9);
   assert.equal(await plus.isDisabled(), true);
 });
+
+for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
+ test(`self accounts can be added, regrouped, and deleted without shifting records (${viewport.width}×${viewport.height})`, async t => {
+  const page=await openMobile(t,viewport);
+  const month=await page.locator('#month').inputValue();
+  await page.evaluate(month=>{
+   const book=window.pocolog.getBook();
+   book.months[month]={columns:['こじ'],accountDetails:[{memo:'アカウントメモ',schedule:{[month+'-01']:'予定'}}],rows:[{name:'検証ライバー',memo:'保持',values:['5'],pairActuals:[{cheerK:5,memo:'実績メモ',actuals:{[month+'-01']:{earnedDay:true,minutes:30,cheerK:null}}}]}]};
+   window.pocolog.setBook(book);
+  },month);
+  const add=page.getByRole('button',{name:'自分アカウントを追加',exact:true});
+  assert.equal(await add.textContent(),'＋自分アカ');
+  await assertFits(page,add,44);
+  const snapshot=await page.evaluate(()=>JSON.stringify(window.pocolog.getBook()));
+  await add.tap();
+  const editor=page.locator('#accountEditor');
+  await editor.waitFor();
+  await assertFits(page,editor);
+  await page.locator('#accountEditorClose').tap();
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.pocolog.getBook())),snapshot);
+  const create=async(name,group)=>{
+   await add.tap();await page.locator('#accountName').fill(name);
+   await editor.locator(`[name=accountGroup][value="${group}"]`).check();
+   await page.screenshot({path:`/tmp/pocolog-account-editor-${viewport.width}.png`});
+   await page.locator('#accountEditorSubmit').tap();
+  };
+  await create('追加アカ',1);
+  const read=()=>page.evaluate(month=>window.pocolog.getBook().months[month],month);
+  assert.deepEqual((await read()).columns,['こじ','追加アカ']);
+  assert.deepEqual((await read()).rows[0].values,['5','']);
+  assert.equal((await read()).rows[0].pairActuals[1],null);
+  assert.equal((await read()).accountDetails[1].group,1);
+  await page.evaluate(month=>{const book=window.pocolog.getBook(),row=book.months[month].rows[0];row.values[1]='5';row.pairActuals[1]={cheerK:5,memo:''};window.pocolog.setBook(book);},month);
+  assert.equal(await page.locator('#grid tbody tr').first().getAttribute('data-met-groups'),'1');
+  assert.equal(await page.locator('#grid tbody td[data-goal-met]').nth(1).getAttribute('data-goal-met'),'1');
+  await create('追加アカ',2);
+  assert.match(await page.locator('#accountEditorError').textContent(),/同じ名前/);
+  await page.locator('#accountEditorClose').tap();
+  await create('青アカ',2);
+  await page.reload();
+  assert.deepEqual((await read()).accountDetails.map(item=>item.group),[1,1,2]);
+  const openSettings=async(view,index)=>{
+   await page.locator(view).tap();
+   await page.locator('#grid thead th[data-account-group] .name-trigger').nth(index).tap();
+   if(view==='#monthViewGoal')await page.locator('#nameEdit').tap();else await page.locator('#manageActualAccount').tap();
+  };
+  await openSettings('#monthViewActual',1);
+  await editor.locator('[name=accountGroup][value="2"]').check();
+  await page.locator('#accountName').fill('変更アカ');await page.locator('#accountEditorSubmit').tap();
+  assert.equal(await page.locator('#grid thead th[data-account-group]').nth(1).getAttribute('data-account-group'),'2');
+  // Keep a copy of another month's records before changing this month.
+  const otherMonth='2030-02';
+  await page.evaluate(({month,otherMonth})=>{const book=window.pocolog.getBook();book.months[otherMonth]=structuredClone(book.months[month]);for(const details of book.months[otherMonth].accountDetails)delete details.schedule;for(const row of book.months[otherMonth].rows)for(const pair of row.pairActuals)if(pair)delete pair.actuals;window.pocolog.setBook(book);},{month,otherMonth});
+  await openSettings('#monthViewTime',1);
+  page.once('dialog',dialog=>dialog.dismiss());await page.locator('#deleteAccount').tap();
+  assert.equal((await read()).columns.length,3);
+  page.once('dialog',dialog=>dialog.accept());await page.locator('#deleteAccount').tap();
+  assert.deepEqual((await read()).columns,['こじ','青アカ']);
+  assert.equal((await read()).rows[0].pairActuals[0].actuals[month+'-01'].minutes,30);
+  assert.equal((await read()).accountDetails[0].memo,'アカウントメモ');
+  assert.equal((await read()).accountDetails[1].group,2);
+  assert.equal(await page.evaluate(otherMonth=>window.pocolog.getBook().months[otherMonth].columns.length,otherMonth),3);
+  await page.locator('#month').fill('2030-03');
+  assert.deepEqual(await page.evaluate(()=>window.pocolog.getBook().months['2030-03'].accountDetails.map(item=>item.group)),[1,2]);
+  await page.reload();
+  assert.deepEqual(await page.evaluate(()=>window.pocolog.getBook().months['2030-03'].columns),['こじ','青アカ']);
+ });
+}
