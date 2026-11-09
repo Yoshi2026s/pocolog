@@ -36,3 +36,16 @@ test('viewing time uses documented condition 1 levels without extrapolation',()=
  assert.equal(PocoCoins.viewingMinutes(40),1500);
  for(const unknown of [0,2,48])assert.equal(PocoCoins.viewingMinutes(unknown),null);
 });
+
+test('account multipliers apply after conversion and follow the account name',()=>{
+ assert.equal(PocoCoins.accountMultiplier('焼肉'),5);
+ assert.equal(PocoCoins.accountMultiplier(' 寿司 '),10);
+ assert.equal(PocoCoins.accountMultiplier('イカ'),10);
+ for(const name of ['こじ','その他','constructor','toString',undefined])assert.equal(PocoCoins.accountMultiplier(name),1);
+ assert.deepEqual(summarize(['10','10','10','10'],['焼肉','寿司','イカ','こじ']),{coins:78000,unknown:0});
+ assert.deepEqual(summarize(['10','10'],['寿司']),{coins:60000,unknown:0});
+ assert.deepEqual(summarize(['1','2','10','5'],['焼肉','寿司','イカ','こじ']),{coins:33500,unknown:0});
+ assert.deepEqual(summarize(['5','10','1','2'],['こじ','イカ','焼肉','寿司']),{coins:33500,unknown:0});
+ assert.deepEqual(summarize(['10','10','10','10'],['こじ','イカ','焼肉','寿司']),{coins:78000,unknown:0});
+ assert.deepEqual(summarize(['','〇','0','31'],['寿司','イカ','焼肉','寿司']),{coins:0,unknown:1});
+});

@@ -625,3 +625,46 @@ for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
   assert.equal(await page.locator('#accountEditor').isVisible(),false);
  });
 }
+
+test('weighted accounts agree across summaries, details, actuals, and CSV without changing input', async t=>{
+ const page=await openMobile(t,{width:390,height:844});
+ const month=await page.locator('#month').inputValue();
+ await page.evaluate(month=>{
+  const book=window.pocolog.getBook();
+  book.months[month]={columns:['焼肉','寿司','イカ','こじ'],rows:[{name:'倍率検証',memo:'保持',values:['10','10','10','10'],pairActuals:[5,5,5,5].map(cheerK=>({cheerK,memo:''}))}]};
+  window.pocolog.setBook(book);
+ },month);
+ const original=await page.evaluate(()=>JSON.stringify(window.pocolog.getBook()));
+ assert.equal(await page.locator('#sum').textContent(),'260');
+ assert.equal(await page.locator('#coinSum').textContent(),'78,000');
+ await page.locator('#openSummary').tap();
+ const accountRows=await page.locator('#accountCoins tbody tr').allTextContents();
+ assert.deepEqual(accountRows,['焼肉5015,000','寿司10030,000','イカ10030,000','こじ103,000']);
+ assert.match(await page.locator('#monthly').textContent(),/260 K/);
+ assert.match(await page.locator('#pairSummaryTable tbody tr').first().textContent(),/倍率検証焼肉5×525/);
+ await page.locator('#closeSummary').tap();
+ await page.locator('#grid thead th[data-account-group] .name-trigger').first().tap();
+ assert.equal(await page.locator('#coinDialogTotal').textContent(),'15,000');
+ assert.match(await page.locator('#coinDialogCheer').textContent(),/50 K/);
+ assert.deepEqual(await page.locator('#coinDialogBreakdown tbody tr').first().locator('td').allTextContents(),['倍率検証','10','×5','50','15,000']);
+ await page.locator('#coinDialogClose').tap();
+ await page.locator('.table-tools>summary').tap();
+ const downloadEvent=page.waitForEvent('download');await page.locator('#csv').tap();
+ const download=await downloadEvent, stream=await download.createReadStream();let csv='';for await(const chunk of stream)csv+=chunk.toString();
+ assert.match(csv,/"10","10","10","10","260","78000"/);
+ await page.locator('.table-tools>summary').tap();
+ await page.locator('#monthViewActual').tap();
+ await page.locator('#grid thead th[data-account-group] .name-trigger').nth(1).tap();
+ assert.equal(await page.locator('#actualAccountTotal').textContent(),'50');
+ assert.match(await page.locator('#actualAccountTable tbody tr').textContent(),/5 × 10 = 50/);
+ await page.locator('#actualAccountClose').tap();
+ await page.locator('.table-tools>summary').tap();
+ const actualDownloadEvent=page.waitForEvent('download');await page.locator('#csv').tap();
+ const actualDownload=await actualDownloadEvent,actualStream=await actualDownload.createReadStream();let actualCsv='';for await(const chunk of actualStream)actualCsv+=chunk.toString();
+ assert.match(actualCsv,/"倍率検証","焼肉","5","5","25"/);
+ assert.match(actualCsv,/"倍率検証","寿司","5","10","50"/);
+ assert.equal(await page.evaluate(()=>JSON.stringify(window.pocolog.getBook())),original);
+ await page.reload();
+ assert.equal(await page.locator('#sum').textContent(),'260');
+ assert.equal(await page.locator('#coinSum').textContent(),'78,000');
+});

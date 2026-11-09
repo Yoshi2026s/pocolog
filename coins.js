@@ -29,13 +29,17 @@
     if (!lookup.has(level)) return { status: 'unlisted', coins: null };
     return { status: 'known', coins: lookup.get(level) };
   }
-  function summarize(values) {
-    return values.reduce((result, value) => {
+  const accountMultipliers = new Map([['焼肉',5],['寿司',10],['イカ',10]]);
+  function accountMultiplier(name) {
+    return accountMultipliers.get(String(name??'').trim()) ?? 1;
+  }
+  function summarize(values, accounts = []) {
+    return values.reduce((result, value, index) => {
       const converted = convert(value);
-      if (converted.status === 'known') result.coins += converted.coins;
+      if (converted.status === 'known') result.coins += converted.coins * accountMultiplier(accounts[index % accounts.length]);
       if (['invalid', 'unlisted'].includes(converted.status)) result.unknown++;
       return result;
     }, { coins: 0, unknown: 0 });
   }
-  globalThis.PocoCoins = Object.freeze({ tiers: tiers.map(tier => Object.freeze(tier)), convert, summarize, viewingMinutes });
+  globalThis.PocoCoins = Object.freeze({ tiers: tiers.map(tier => Object.freeze(tier)), convert, summarize, viewingMinutes, accountMultiplier });
 })();
