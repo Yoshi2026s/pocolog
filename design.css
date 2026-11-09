@@ -374,6 +374,16 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 #deleteAccount{color:#9b392e;border-color:#dfb7b1}
 #deleteAccount[hidden],#manageActualAccount[hidden]{display:none}
 #bottomMenus .primary-tools #addCol{min-height:48px;min-width:58px}
+#accountEditor{padding:12px;scroll-padding-block:76px}
+#accountEditor .dialog-header{position:sticky;top:-12px;z-index:2;align-items:center;padding:8px 0;background:var(--surface)}
+#accountEditor .schedule-label{margin:12px 0}
+#accountEditor .account-group-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:8px}
+#accountEditor .account-group-options label{padding:8px 5px;gap:6px;font-size:14px}
+.account-group-options small{display:block;font-size:12px;margin-top:2px;color:var(--muted)}
+.account-editor-actions{display:flex;gap:8px;position:sticky;bottom:-12px;padding:8px 0;background:var(--surface);border-top:1px solid var(--line);z-index:2}
+.account-editor-actions button{flex:1;width:auto;margin:0}
+#accountEditor .note{font-size:12px;line-height:1.6;margin:8px 0}
+#accountName[aria-invalid=true]{border-color:#ad4937;outline:2px solid #ad4937;outline-offset:1px}
 @media(max-width:700px), (max-height:500px) and (max-width:1000px){
  dialog button,dialog summary,#scheduleClose,#closingTimeInput [role=option]{min-height:44px}
  dialog input:not([type=checkbox]):not([type=radio]),dialog textarea,dialog select{font-size:16px}

@@ -588,3 +588,40 @@ for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
   assert.deepEqual(await page.evaluate(()=>window.pocolog.getBook().months['2030-03'].columns),['こじ','青アカ']);
  });
 }
+
+for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
+ test(`account settings avoid no-op edits and keep actions reachable (${viewport.width}×${viewport.height})`, async t => {
+  const page=await openMobile(t,viewport);
+  const month=await page.locator('#month').inputValue();
+  await page.evaluate(month=>{const book=window.pocolog.getBook();book.months[month]={columns:['単独アカ'],rows:[{name:'ライバー',memo:'保持',values:['5']}]};window.pocolog.setBook(book);},month);
+  const before=await page.evaluate(()=>({payload:localStorage.getItem('pocolog.v1'),pending:localStorage.getItem('pocolog.pending.v1')}));
+  const open=async()=>{await page.locator('#grid thead th[data-account-group] .name-trigger').first().tap();await page.locator('#nameEdit').tap();};
+  await open();
+  await assertFits(page,page.locator('#accountEditorSubmit'),48);
+  await page.locator('#accountEditorSubmit').tap();
+  assert.deepEqual(await page.evaluate(()=>({payload:localStorage.getItem('pocolog.v1'),pending:localStorage.getItem('pocolog.pending.v1')})),before);
+  assert.equal(await page.locator('#accountEditor').isVisible(),false);
+  assert.equal(await page.evaluate(()=>document.activeElement.closest('th')?.dataset.accountGroup),'2');
+  await open();
+  await page.locator('#accountName').fill('   ');
+  await page.locator('#accountEditorSubmit').tap();
+  assert.equal(await page.locator('#accountName').getAttribute('aria-invalid'),'true');
+  await page.locator('#accountName').fill('単独アカ');
+  assert.equal(await page.locator('#accountName').getAttribute('aria-invalid'),null);
+  const editor=page.locator('#accountEditor');
+  await editor.evaluate(el=>el.scrollTop=el.scrollHeight);
+  await assertFits(page,page.locator('#accountEditorClose'),48);
+  await assertFits(page,page.locator('#deleteAccount'),48);
+  await page.screenshot({path:`/tmp/pocolog-account-refined-${viewport.width}.png`});
+  page.once('dialog',async dialog=>{assert.match(dialog.message(),new RegExp(month));assert.match(dialog.message(),/目標・実績・メモ・予定/);await dialog.accept();});
+  await page.locator('#deleteAccount').tap();
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'addCol');
+  await page.reload();
+  assert.deepEqual(await page.evaluate(month=>window.pocolog.getBook().months[month].columns,month),[]);
+  await page.locator('#addCol').tap();
+  await page.locator('#accountName').fill('復帰アカ');
+  await page.locator('#accountEditorSubmit').tap();
+  assert.deepEqual(await page.evaluate(month=>window.pocolog.getBook().months[month].columns,month),['復帰アカ']);
+  assert.equal(await page.locator('#accountEditor').isVisible(),false);
+ });
+}

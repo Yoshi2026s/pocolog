@@ -460,10 +460,11 @@ function showCoinDialog(kind,index){
  };
  $('nameDelete').onclick=()=>{
   if(!current())return;
-  const question=isAccount?`アカウント「${name}」と各ライバーの記録を削除しますか？`:`ライバー「${name}」の記録を削除しますか？`;
+  const question=isAccount?accountDeletionQuestion(index):`ライバー「${name}」の記録を削除しますか？`;
   if(!confirm(question))return;
   if(isAccount)removeAccount(index);else data.rows.splice(index,1);
   save();render();
+  if(isAccount){if(data.columns.length)focusAccountHeader(Math.min(index,data.columns.length-1));else $('addCol').focus({preventScroll:true});$('orderStatus').textContent=`${name}を${book.currentMonth}から削除しました。`;}
  };
  const total=measure(entries.map(entry=>entry.value));
  $('coinDialogTitle').textContent=`${name||'（未設定）'}の必要コイン合計`;
@@ -1182,6 +1183,8 @@ function openAccountEditor(index=null){
  if(!gridEditingEnabled)return;
  if(index===null&&data.columns.length>=100)return alert('自分アカウントは100件までです。');
  accountEditorContext={table:data,month:book.currentMonth,index};
+ $('accountEditorScope').textContent=`対象：${book.currentMonth.replace('-', '年')}月。ほかの月は変わりません。新しい月には名前とグループを引き継ぎます。`;
+ $('accountName').removeAttribute('aria-invalid');
  $('accountEditorTitle').textContent=index===null?'自分アカウントを追加':'自分アカウントの設定';
  $('accountName').value=index===null?'':data.columns[index];
  const group=index===null?2:PocoRows.achievementGroup(data.columns[index],data.accountDetails?.[index]);
@@ -1190,14 +1193,18 @@ function openAccountEditor(index=null){
  $('deleteAccount').hidden=index===null;$('accountEditorError').textContent='';
  $('accountEditor').showModal();
 }
+function focusAccountHeader(index){$('grid').tHead?.rows[0].cells[index+3]?.querySelector('.name-trigger')?.focus({preventScroll:true});}
+function accountDeletionQuestion(index){return `${book.currentMonth}の「${data.columns[index]}」を削除しますか？ このアカウントの目標・実績・メモ・予定を削除します。他のアカウントと他の月は残ります。`;}
+$('accountName').addEventListener('input',()=>{$('accountName').removeAttribute('aria-invalid');$('accountEditorError').textContent='';});
 function accountEditorIsCurrent(){return gridEditingEnabled&&accountEditorContext?.table===data&&accountEditorContext.month===book.currentMonth;}
 $('addCol').onclick=()=>openAccountEditor();
 $('accountEditorClose').onclick=()=>$('accountEditor').close();
 $('accountEditorForm').onsubmit=event=>{
  event.preventDefault();if(!accountEditorIsCurrent())return;
  const name=$('accountName').value.trim(),group=Number(document.querySelector('#accountEditorForm input[name=accountGroup]:checked')?.value),index=accountEditorContext.index;
- if(!name||name.length>100||![1,2].includes(group)){$('accountEditorError').textContent='名前とグループを確認してください。';return;}
- if(data.columns.some((existing,j)=>j!==index&&existing.trim()===name)){$('accountEditorError').textContent='同じ名前のアカウントがあります。';$('accountName').focus();return;}
+ if(!name||name.length>100||![1,2].includes(group)){$('accountEditorError').textContent='アカウント名を1〜100文字で入力し、グループを選んでください。';$('accountName').setAttribute('aria-invalid','true');$('accountName').focus();return;}
+ if(data.columns.some((existing,j)=>j!==index&&existing.trim()===name)){$('accountEditorError').textContent='同じ名前のアカウントがあります。別の名前を入力してください。';$('accountName').setAttribute('aria-invalid','true');$('accountName').focus();return;}
+ if(index!==null&&name===data.columns[index]&&group===PocoRows.achievementGroup(data.columns[index],data.accountDetails?.[index])){$('accountEditor').close();focusAccountHeader(index);return;}
  if(index===null){
   if(data.columns.length>=100)return;
   const details=data.columns.map((_,j)=>({...PocoCalendar.accountDetails(data,j),group:PocoRows.achievementGroup(data.columns[j],data.accountDetails?.[j])}));
@@ -1205,13 +1212,18 @@ $('accountEditorForm').onsubmit=event=>{
   data.rows.forEach(row=>{row.values.push('');if(row.pairActuals)row.pairActuals.push(null);});focusedAccount=null;
  }else{const details=PocoCalendar.accountDetails(data,index,true);details.group=group;data.columns[index]=name;}
  $('accountEditor').close();save();render();
+ focusAccountHeader(index??data.columns.length-1);
+ $('orderStatus').textContent=`${name}をグループ${group}で${index===null?'追加':'変更'}しました。`;
  if(index===null){revealGridColumn(data.columns.length-1);markAddedName($('grid').tHead.rows[0].cells[data.columns.length+2].querySelector('.name-trigger'),'自分アカウントを追加しました。');}
 };
 $('deleteAccount').onclick=()=>{
  if(!accountEditorIsCurrent()||accountEditorContext.index===null)return;
  const index=accountEditorContext.index;
- if(!confirm(`表示月（${book.currentMonth}）の「${data.columns[index]}」と、このアカウントの目標・実績・メモを削除しますか？ 他の月は残ります。`))return;
+ if(!confirm(accountDeletionQuestion(index)))return;
+ const name=data.columns[index];
  $('accountEditor').close();removeAccount(index);save();render();
+ if(data.columns.length)focusAccountHeader(Math.min(index,data.columns.length-1));else $('addCol').focus({preventScroll:true});
+ $('orderStatus').textContent=`${name}を${book.currentMonth}から削除しました。`;
 };
 $('metric').onchange=()=>renderSummary();
 $('tableMode').onclick=()=>{const expanded=$('tablePanel').classList.toggle('table-detail');$('tableMode').setAttribute('aria-pressed',String(expanded));$('tableMode').textContent=expanded?'一覧に戻る':'編集・詳細';toolsMenu.open=false;refreshTableViewport();};
