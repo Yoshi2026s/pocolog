@@ -1047,7 +1047,7 @@ function render(){
  cell(head,'th').textContent='ライバー名';
  sortHeader(head,'closingTime','締め','closing-col');sortHeader(head,'releaseDate','解禁日','release-col');
  data.columns.forEach((c,j)=>{
-  const th=cell(head,'th');th.append(nameControls(c,'アカウント',()=>monthView!=='goal'?showActualAccount(j):showCoinDialog('account',j)));if(monthView!=='goal')th.querySelector('button').setAttribute('aria-label',`アカウント ${c}の${monthView==='time'?'日数・時間':'獲得実績'}`);
+  const th=cell(head,'th');const group=PocoRows.achievementGroup(c);th.dataset.accountGroup=group;th.setAttribute('aria-description',`目標達成の第${group}グループ`);th.append(nameControls(c,'アカウント',()=>monthView!=='goal'?showActualAccount(j):showCoinDialog('account',j)));if(monthView!=='goal')th.querySelector('button').setAttribute('aria-label',`アカウント ${c}の${monthView==='time'?'日数・時間':'獲得実績'}`);
  });
  if(monthView==='goal'){cell(head,'th','extra-col').textContent='合計（K）';cell(head,'th','extra-col').textContent='必要コイン';}cell(head,'th','extra-col').textContent='メモ';
  const body=table.createTBody();

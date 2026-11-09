@@ -328,7 +328,15 @@ test('goal and actual cells keep their independent group colors through row high
   });
   const pink = 'rgb(252, 228, 239)';
   const blue = 'rgb(227, 239, 252)';
+  const assertHeaderColors = async () => {
+    const headers = await page.locator('#grid thead th[data-account-group]').evaluateAll(cells => cells.map(th => ({ group: th.dataset.accountGroup, color: getComputedStyle(th).backgroundColor })));
+    assert.deepEqual(headers, [
+      { group: '1', color: pink }, { group: '1', color: pink }, { group: '1', color: pink },
+      { group: '2', color: blue }, { group: '2', color: blue }
+    ]);
+  };
   const assertColors = async () => {
+    await assertHeaderColors();
     const rows = await page.locator('#grid tbody tr').evaluateAll(rows => rows.map(row => ({
       groups: row.dataset.metGroups,
       colors: Array.from(row.cells).slice(3, 8).map(td => getComputedStyle(td).backgroundColor)
@@ -356,6 +364,19 @@ test('goal and actual cells keep their independent group colors through row high
   await assertColors();
   await page.reload();
   await assertColors();
+  await page.locator('#monthViewTime').tap();
+  await assertHeaderColors();
+  await page.locator('#monthViewActual').tap();
+  await page.locator('#grid [data-actual-account="0"]').first().tap();
+  await assertColors();
+  await page.locator('#cheerPicker').getByRole('button', { name: 'エール選択を閉じる' }).tap();
+  await page.evaluate(() => {
+    const book = window.pocolog.getBook();
+    book.months[book.currentMonth].columns[0] = '別アカウントC';
+    window.pocolog.setBook(book);
+  });
+  assert.equal(await page.locator('#grid thead th[data-account-group]').first().getAttribute('data-account-group'), '2');
+  assert.equal(await page.locator('#grid thead th[data-account-group]').first().evaluate(th => getComputedStyle(th).backgroundColor), blue);
 });
 
 for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }]) {

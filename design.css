@@ -228,6 +228,9 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 #grid tbody tr[data-met-groups="1 2"]{--group-fill:linear-gradient(105deg,var(--goal-group-1) 50%,var(--goal-group-2) 50%);--group-edge:#ac527b}
 #grid tbody tr>td[data-goal-met="1"]{background:var(--goal-group-1)}
 #grid tbody tr>td[data-goal-met="2"]{background:var(--goal-group-2)}
+#grid thead th[data-account-group="1"]{background:var(--goal-group-1)}
+#grid thead th[data-account-group="2"]{background:var(--goal-group-2)}
+#grid thead th[data-account-group].active-cheer-account{box-shadow:inset 0 -3px var(--brand)}
 #grid td[data-goal-met] > button.cheer-field{font-weight:700;background:transparent}
 @media(max-width:380px){header .header-meta .month-label{gap:4px}.month-caption{font-size:10px}header .header-meta .month-label input{width:126px;max-width:126px}}
 
