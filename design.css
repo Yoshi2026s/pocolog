@@ -340,3 +340,31 @@ header .header-meta .month-label{gap:5px;color:#d5e7db}.month-caption{font-size:
 #pairCheerCustom button{min-height:48px}
 .usage-guide ul{padding-inline-start:18px}
 .usage-guide li+li{margin-top:6px}
+
+/* Keep secondary actions usable with a thumb and prevent iPhone input zoom. */
+.file{position:relative;display:inline-flex;align-items:center;min-height:44px}
+.file:focus-within{outline:2px solid var(--brand);outline-offset:2px}
+.actual-picker .cheer-picker-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px}
+.actual-picker .cheer-picker-heading>span{grid-column:1;font-size:13px;line-height:1.4}
+.actual-picker .cheer-picker-heading>button{grid-column:2;grid-row:1/3;min-width:56px;font-size:13px}
+.actual-picker-value{grid-column:1;font-size:20px;line-height:1.25;font-variant-numeric:tabular-nums}
+.actual-picker .cheer-picker-context{min-height:0;flex:0 1 auto;overflow-y:auto}
+.actual-picker .cheer-picker-jumps{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:8px}
+.actual-picker .cheer-picker-jumps button{min-height:44px;font-size:18px;font-weight:650}
+.actual-picker-adjustments{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.actual-picker-adjustments button{min-width:0;min-height:44px;padding:4px 1px;font-size:17px;font-weight:650;background:#e3f0e6;color:#235b40}
+.actual-picker-adjustments button:disabled{opacity:.4;cursor:default}
+.actual-picker #cheerChoices{flex:1 0 48px;min-height:48px;border-top:1px solid var(--line);margin-top:5px}
+.actual-picker #cheerChoices [role=option]{min-height:48px;font-size:18px}
+.actual-picker .cheer-picker-details{min-height:44px;font-size:14px}
+.actual-picker-wide .cheer-picker-jumps{grid-template-columns:repeat(7,minmax(0,1fr))}
+.actual-picker-wide .cheer-picker-jumps button{font-size:17px}
+#grid button.cheer-field,.cheer-picker button{-webkit-tap-highlight-color:transparent}
+@media(max-width:700px), (max-height:500px) and (max-width:1000px){
+ dialog button,dialog summary,#scheduleClose,#closingTimeInput [role=option]{min-height:44px}
+ dialog input:not([type=checkbox]):not([type=radio]),dialog textarea,dialog select{font-size:16px}
+ dialog summary{padding-block:10px}
+ dialog .dialog-header button{min-width:60px;white-space:nowrap}
+ .actual-earned-day,.actual-bulk-modes label{min-height:44px}
+ #scheduleDialog #releaseCalendar .calendar-day{min-height:44px}
+}

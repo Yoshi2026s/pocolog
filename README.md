@@ -3,6 +3,10 @@
 
 ## 起動
 
+Linux / macOS / Git Bash では、初回に `bash scripts/install.sh` を実行すると、依存関係のインストール・テスト・ビルドをまとめて行います。起動は `bash scripts/start.sh`、停止は Ctrl+C です。どちらも別のディレクトリから絶対パスで実行できます。Node.js 24 と npm は事前に用意してください。
+
+Codex 用の起動スキルは `.agents/skills/start-pocolog/SKILL.md` にあります。このリポジトリで「ポコログを起動して」と依頼するときに使います。新しく追加したスキルが一覧に出ない場合は、このリポジトリで新しいセッションを開始してください。
+
 Node.js 24 と npm を使用します（Python は不要です）。
 
 ```sh

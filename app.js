@@ -213,7 +213,11 @@ function visibleViewport(){
 function positionCheerPicker(){
  if(!activeCheer)return;
  const rect=activeCheer.getBoundingClientRect(),view=visibleViewport();
- const maxHeight=Math.min(300,view.height-16),width=Math.min(220,view.width-16);
+ const actual=cheerPicker.classList.contains('actual-picker');
+ const wide=actual&&view.height<420&&view.width>=480;
+ const maxHeight=Math.min(actual?420:300,view.height-16),width=Math.min(actual?(wide?400:320):220,view.width-16);
+ cheerPicker.classList.toggle('actual-picker-wide',wide);
+ cheerPicker.style.height=actual?maxHeight+'px':'';
  cheerPicker.style.width=width+'px';cheerPicker.style.maxHeight=maxHeight+'px';
  cheerPicker.style.left=Math.max(view.left+8,Math.min(rect.left,view.left+view.width-width-8))+'px';
  const below=view.top+view.height-rect.bottom-8,above=rect.top-view.top-8;
@@ -230,18 +234,39 @@ function cheerSelect(value,label,onchange,{actual=false,onDetails=null}={}){
  function open(){
   if(trigger.disabled)return;
   if(activeCheer===trigger){closeCheerPicker(true);return;}
-  closeCheerPicker();activeCheer=trigger;cheerPicker.replaceChildren();highlightCheer(trigger);
+  closeCheerPicker();activeCheer=trigger;cheerPicker.replaceChildren();cheerPicker.classList.toggle('actual-picker',actual);highlightCheer(trigger);
   const context=document.createElement('div');context.className='cheer-picker-context';
-  const heading=document.createElement('div');heading.className='cheer-picker-heading';const title=document.createElement('span');title.textContent=label;
+  const heading=document.createElement('div');heading.className='cheer-picker-heading';const title=document.createElement('span');title.textContent=actual?label.replace(/の実績を選択$/,'の実績（K）'):label;
   const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('aria-label','エール選択を閉じる');close.onclick=()=>closeCheerPicker(true);heading.append(title,close);
   const jumps=document.createElement('div');jumps.className='cheer-picker-jumps';jumps.setAttribute('role','group');jumps.setAttribute('aria-label','数字の範囲へ移動');
-  for(const start of [1,13,25,37]){const jump=document.createElement('button');jump.type='button';jump.textContent=`${start}〜${start+11}`;jump.onclick=()=>{const option=options[start+(actual?0:1)];option.focus({preventScroll:true});list.scrollTop+=option.getBoundingClientRect().top-list.getBoundingClientRect().top;};jumps.append(jump);}
-  context.append(heading,jumps);const list=document.createElement('div');list.id='cheerChoices';list.setAttribute('role','listbox');list.setAttribute('aria-label',label+'のエール数');cheerPicker.append(context,list);
+  if(!actual)for(const start of [1,13,25,37]){const jump=document.createElement('button');jump.type='button';jump.textContent=`${start}〜${start+11}`;jump.onclick=()=>{const option=options[start+(actual?0:1)];option.focus({preventScroll:true});list.scrollTop+=option.getBoundingClientRect().top-list.getBoundingClientRect().top;};jumps.append(jump);}
+  const currentText=trigger.textContent.trim().replaceAll(',','');
+  let current=currentText===''?null:Number(currentText);
+  const deltaButtons=[];
+  const currentLabel=document.createElement('strong');currentLabel.className='actual-picker-value';currentLabel.setAttribute('role','status');
+  function updateActualControls(){
+   currentLabel.textContent=current===null?'未記録':`${fmt(current)} K`;
+   for(const [button,delta] of deltaButtons)button.disabled=(current!==null&&!Number.isFinite(current))||(current??0)+delta<0||(current??0)+delta>1e9;
+  }
+  function applyChoice(choice,keepOpen=false){
+   if(onchange(choice)!==false){trigger.textContent=choice;current=choice===''?null:Number(choice);save();stats();}
+   if(actual)updateActualControls();
+   if(!keepOpen)closeCheerPicker(true);
+  }
+  if(actual){
+   heading.append(currentLabel);
+   jumps.setAttribute('aria-label','実績を入力（K）');
+   for(const number of [1,2,5,10,20,30,40]){const button=document.createElement('button');button.type='button';button.textContent=String(number);button.setAttribute('aria-label',`${number}Kを入力`);button.onclick=()=>applyChoice(String(number));jumps.append(button);}
+   const adjustments=document.createElement('div');adjustments.className='actual-picker-adjustments';adjustments.setAttribute('role','group');adjustments.setAttribute('aria-label','実績を増減（K）');
+   for(const delta of [-1,-5,1,5,10]){const button=document.createElement('button');button.type='button';button.textContent=`${delta<0?'−':'＋'}${Math.abs(delta)}`;button.setAttribute('aria-label',`実績を${Math.abs(delta)}K${delta<0?'減らす':'増やす'}`);button.onclick=()=>applyChoice(String(Number(((current??0)+delta).toFixed(10))),true);adjustments.append(button);deltaButtons.push([button,delta]);}
+   context.append(heading,jumps,adjustments);updateActualControls();
+  }else context.append(heading,jumps);
+  const list=document.createElement('div');list.id='cheerChoices';list.setAttribute('role','listbox');list.setAttribute('aria-label',label+'のエール数');cheerPicker.append(context,list);
   const choices=['',...(actual?[]:['〇']),...Array.from({length:48},(_,i)=>String(i+1))];
   const options=choices.map((choice,index)=>{
-   const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===0));option.tabIndex=-1;option.textContent=choice;if(choice==='')option.setAttribute('aria-label','空欄');
+   const option=document.createElement('button');option.type='button';option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===0));option.tabIndex=-1;option.textContent=actual&&choice===''?'空欄（未記録）':choice;if(choice==='')option.setAttribute('aria-label','空欄');
    option.onfocus=()=>options.forEach(item=>item.setAttribute('aria-selected',String(item===option)));
-   option.onclick=()=>{if(onchange(choice)!==false){trigger.textContent=choice;save();stats();}closeCheerPicker(true);};
+   option.onclick=()=>applyChoice(choice);
    list.append(option);return option;
   });
   if(onDetails){const details=document.createElement('button');details.type='button';details.className='cheer-picker-details';details.textContent='日数・時間を入力';details.onclick=()=>{closeCheerPicker(true);onDetails();};cheerPicker.append(details);}
@@ -359,7 +384,7 @@ function sortHeader(head,field,label,cls){
  text.onkeydown=event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();text.click();}};th.append(text);
 }
 function attachRowDrag(button,row,tr){
- button.title=`${row.name}：タップで合計、長押しして順番を移動（マウスはドラッグ、Alt＋↑↓でも移動）`;
+ button.title=`${row.name}：タップで詳細、長押しして順番を移動（マウスはドラッグ、Alt＋↑↓でも移動）`;
  button.oncontextmenu=event=>event.preventDefault();
  function updateDrop(){
   if(!rowDrag?.dragging)return;const drag=rowDrag;const target=document.elementFromPoint(drag.x,drag.y)?.closest('#grid tbody tr');
@@ -377,15 +402,17 @@ function attachRowDrag(button,row,tr){
  }
  button.onpointerdown=event=>{
   if(button.disabled||event.button!==0)return;clearRowDrag();
-  rowDrag={button,row,pointerId:event.pointerId,pointerType:event.pointerType,startScrollTop:$('grid').parentElement.scrollTop,scrolling:false,startY:event.clientY,x:event.clientX,y:event.clientY,dragging:false,target:row,after:false};
+  rowDrag={button,row,pointerId:event.pointerId,pointerType:event.pointerType,startScrollTop:$('grid').parentElement.scrollTop,startScrollLeft:$('grid').parentElement.scrollLeft,scrolling:false,startX:event.clientX,startY:event.clientY,x:event.clientX,y:event.clientY,dragging:false,target:row,after:false};
   button.setPointerCapture(event.pointerId);rowDrag.timer=setTimeout(begin,300);
  };
  button.onpointermove=event=>{
   if(!rowDrag||rowDrag.pointerId!==event.pointerId)return;
   rowDrag.x=event.clientX;rowDrag.y=event.clientY;
-  if(rowDrag.pointerType==='touch'&&!rowDrag.dragging&&(rowDrag.scrolling||Math.abs(event.clientY-rowDrag.startY)>8)){
+  if(rowDrag.pointerType==='touch'&&!rowDrag.dragging&&(rowDrag.scrolling||Math.hypot(event.clientX-rowDrag.startX,event.clientY-rowDrag.startY)>8)){
    clearTimeout(rowDrag.timer);rowDrag.scrolling=true;
-   $('grid').parentElement.scrollTop=rowDrag.startScrollTop+rowDrag.startY-event.clientY;event.preventDefault();return;
+   const wrap=$('grid').parentElement;
+   wrap.scrollTop=rowDrag.startScrollTop+rowDrag.startY-event.clientY;
+   wrap.scrollLeft=rowDrag.startScrollLeft+rowDrag.startX-event.clientX;event.preventDefault();return;
   }
   if(rowDrag.pointerType!=='touch'&&Math.abs(event.clientY-rowDrag.startY)>6)begin();
   if(rowDrag.dragging){event.preventDefault();updateDrop();}
@@ -681,7 +708,7 @@ function updateActualTools(){
  const canUndo=lastActualAction&&lastActualAction.row===entity&&lastActualAction.table===data&&JSON.stringify(entity.actuals||{})===JSON.stringify(lastActualAction.after);
  const invalidDraft=hasInvalidActualDayDraft();
  $('undoActualAction').hidden=!canUndo&&!invalidDraft;$('undoActualAction').textContent=invalidDraft?'未保存の入力を戻す':'直前の操作を元に戻す';
- const missing=currentMissingActualDates();$('actualMissingInfo').textContent=`今日までの未記録候補 ${missing.length}日（予定あり・未記録、または時間未入力）`;$('findMissingActual').disabled=!missing.length;previewActualBulk();
+ const missing=currentMissingActualDates();$('actualMissingInfo').textContent=`今日までの入力待ち：${missing.length}日（予定日の未記録・実績の時間未入力）`;$('findMissingActual').disabled=!missing.length;previewActualBulk();
 }
 function applyActualAction(next,message){
  const entity=entityDetails(true);if(!isActualContext()||!entity)return;
@@ -894,7 +921,7 @@ function openEntityPlanner(target,date=null){
  currentEntity=target;
  const actual=isActualContext(),pair=target.kind==='pair';
  $('planDayNavigation').hidden=actual;
- $('actualDayHelp').textContent=pair?'0分を超えると日数にも数えます。':'時間やエールが0を超えると日数にも数えます。';
+ $('actualDayHelp').textContent=(pair?'0分を超えると日数にも数えます。':'時間やエールが0を超えると日数にも数えます。')+' 空欄は未記録、0は実績0です。1日24時間まで入力できます。';
  $('actualSummaryNote').textContent=pair?'日数・時間は今月の合計です。':'ライバー単位の旧記録です。';
  $('actualEntryShortcut').hidden=!actual;$('actualHistory').open=false;
  $('liverActualSummary').hidden=!actual;$('liverActualEditor').hidden=!actual;
@@ -905,7 +932,7 @@ function openEntityPlanner(target,date=null){
  document.querySelector('.entity-breakdown').open=false;if(isActualContext())resetActualBulk();
 }
 function plannerSaved(message=''){
- const stored=save();$('plannerStatus').textContent=stored?(message||'このブラウザに保存しました'):'保存できません。バックアップを保存してください。';
+ const stored=save();$('plannerStatus').textContent=stored?`${message||'記録しました。'}（端末内）`:'保存できません。バックアップを保存してください。';
  return stored;
 }
 $('entityMemo').oninput=()=>{
@@ -1087,7 +1114,7 @@ function renderSummary(liverTotals=data.rows.map(r=>({name:r.name,...measure(r.v
  const pairs=$('pairSummaryTable');pairs.replaceChildren();const pairHead=pairs.createTHead().insertRow();for(const title of ['ライバー','アカウント','獲得エール（K）','日数','時間'])cell(pairHead,'th').textContent=title;const pairBody=pairs.createTBody();
  for(const row of data.rows)data.columns.forEach((account,index)=>{const pair=row.pairActuals?.[index];if(!pair)return;const total=PocoCalendar.actualTotals(pair),tr=pairBody.insertRow();for(const value of [row.name,account,pair.cheerK===null?'未記録':fmt(pair.cheerK),total.records?total.days+'日':'未記録',total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'未記録'])cell(tr).textContent=value;});
  if(!pairBody.rows.length){const td=cell(pairBody.insertRow());td.colSpan=5;td.textContent='月実績の各アカウント欄から記録できます。';}
- const actuals=$('actualSummaryTable');actuals.replaceChildren();const actualHead=actuals.createTHead().insertRow();for(const title of ['ライバー','稼いだ日数','稼いだ時間','実獲得エール（K）'])cell(actualHead,'th').textContent=title;
+ const actuals=$('actualSummaryTable');actuals.replaceChildren();const actualHead=actuals.createTHead().insertRow();for(const title of ['ライバー','記録日数','記録時間','実獲得エール（K）'])cell(actualHead,'th').textContent=title;
  const actualBody=actuals.createTBody();for(const row of data.rows){const total=PocoCalendar.actualTotals(row),tr=actualBody.insertRow();for(const value of [row.name,total.records?`${total.days}日`:'未記録',total.timeRecords?`${Math.floor(total.minutes/60)}時間${total.minutes%60}分`:'未記録',total.cheerRecords?fmt(total.cheerK):'未記録'])cell(tr).textContent=value;}
  summaryDirty=false;
 }
@@ -1209,7 +1236,7 @@ $('refresh').onclick=async()=>{
 function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('download').onclick=()=>download(JSON.stringify(book,null,2),'application/json','pocolog-backup.json');
 $('upload').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>10000000)throw Error();const next=JSON.parse(await f.text());if(!validBook(next)&&!valid(next,book.currentMonth))throw Error();if(confirm('全月の記録をバックアップの内容で置き換えますか？')){book=validBook(next)?next:{version:2,currentMonth:book.currentMonth,months:{[book.currentMonth]:next}};addMoeAccount();PocoRows.addExtraAccounts(book);addPhotoLivers();rowSort={field:null,direction:1,month:book.currentMonth};data=book.months[book.currentMonth];$('month').value=book.currentMonth;save();render();}}catch{alert('読み込めませんでした。ポコログのJSONバックアップを選択してください。');}e.target.value='';};
-$('csv').onclick=()=>{const quote=s=>'"'+String(s).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';if(monthView==='time'){const rows=[['ライバー名','アカウント','稼いだ日数','稼いだ時間（分）','メモ']];for(const row of data.rows){data.columns.forEach((account,index)=>{const pair=PocoCalendar.pairDetails(data,row,index),total=PocoCalendar.actualTotals(pair);rows.push([row.name,account,total.records?total.days:'',total.timeRecords?total.minutes:'',pair.memo]);});const legacy=PocoCalendar.actualTotals(row);if(legacy.records)rows.push([row.name,'以前のライバー単位の記録',legacy.days,legacy.timeRecords?legacy.minutes:'',row.memo]);}download('\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog-time.csv');return;}if(monthView==='actual'){const rows=[['ライバー名','アカウント','現時点の獲得エール（K）','稼いだ日数','稼いだ時間（分）','メモ']];for(const row of data.rows){data.columns.forEach((account,index)=>{const pair=PocoCalendar.pairDetails(data,row,index),total=PocoCalendar.actualTotals(pair);rows.push([row.name,account,pair.cheerK??'',total.records?total.days:'',total.timeRecords?total.minutes:'',pair.memo]);});const legacy=PocoCalendar.actualTotals(row);if(legacy.records)rows.push([row.name,'以前のライバー単位の記録',legacy.cheerRecords?legacy.cheerK:'',legacy.days,legacy.timeRecords?legacy.minutes:'',row.memo]);}download('\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog-actual.csv');return;}const rows=[['ライバー名','締め','解禁日',...data.columns,'エール合計（K）','必要コイン（換算済み分）','未算定セル数','メモ','稼いだ日数','稼いだ時間（分）','実獲得エール（K）'],...data.rows.map(r=>{const total=measure(r.values);const actual=PocoCalendar.actualTotals(r);return [r.name,r.closingTime||'',PocoRows.formatRelease(r.releaseDate,book.currentMonth),...r.values,total.number,total.coins,total.unknown,r.memo,actual.records?actual.days:'',actual.timeRecords?actual.minutes:'',actual.cheerRecords?actual.cheerK:''];})];download('\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog.csv');};
+$('csv').onclick=()=>{const quote=s=>'"'+String(s).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';if(monthView==='time'){const rows=[['ライバー名','アカウント','記録日数','記録時間（分）','メモ']];for(const row of data.rows){data.columns.forEach((account,index)=>{const pair=PocoCalendar.pairDetails(data,row,index),total=PocoCalendar.actualTotals(pair);rows.push([row.name,account,total.records?total.days:'',total.timeRecords?total.minutes:'',pair.memo]);});const legacy=PocoCalendar.actualTotals(row);if(legacy.records)rows.push([row.name,'以前のライバー単位の記録',legacy.days,legacy.timeRecords?legacy.minutes:'',row.memo]);}download('\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog-time.csv');return;}if(monthView==='actual'){const rows=[['ライバー名','アカウント','現時点の獲得エール（K）','記録日数','記録時間（分）','メモ']];for(const row of data.rows){data.columns.forEach((account,index)=>{const pair=PocoCalendar.pairDetails(data,row,index),total=PocoCalendar.actualTotals(pair);rows.push([row.name,account,pair.cheerK??'',total.records?total.days:'',total.timeRecords?total.minutes:'',pair.memo]);});const legacy=PocoCalendar.actualTotals(row);if(legacy.records)rows.push([row.name,'以前のライバー単位の記録',legacy.cheerRecords?legacy.cheerK:'',legacy.days,legacy.timeRecords?legacy.minutes:'',row.memo]);}download('\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog-actual.csv');return;}const rows=[['ライバー名','締め','解禁日',...data.columns,'エール合計（K）','必要コイン（換算済み分）','未算定セル数','メモ','記録日数','記録時間（分）','実獲得エール（K）'],...data.rows.map(r=>{const total=measure(r.values);const actual=PocoCalendar.actualTotals(r);return [r.name,r.closingTime||'',PocoRows.formatRelease(r.releaseDate,book.currentMonth),...r.values,total.number,total.coins,total.unknown,r.memo,actual.records?actual.days:'',actual.timeRecords?actual.minutes:'',actual.cheerRecords?actual.cheerK:''];})];download('\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','pocolog.csv');};
 const reference=$('coinReference');const referenceHead=reference.createTHead().insertRow();
 cell(referenceHead,'th').textContent='エール（K）';cell(referenceHead,'th').textContent='必要コイン（条件1）';
 const referenceBody=reference.createTBody();PocoCoins.tiers.forEach(([level,coins])=>{const row=referenceBody.insertRow();cell(row).textContent=fmt(level);cell(row).textContent=fmt(coins);});

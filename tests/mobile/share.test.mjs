@@ -9,7 +9,7 @@ const dist = resolve('dist');
 let browser;
 
 before(async () => {
-  browser = await chromium.launch();
+  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined });
 });
 after(async () => {
   await browser?.close();
@@ -147,7 +147,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }
     const filled = copyDialog.getByRole('checkbox', { name: /こじ.*25分/ });
     const empty = copyDialog.getByRole('checkbox', { name: /もえ.*時間未記録/ });
     assert.equal(await copyDialog.getByRole('button', { name: '選んだアカウントへ反映' }).isDisabled(), true);
-    await copyDialog.getByRole('button', { name: '時間未記録をまとめて選択' }).tap();
+    await copyDialog.getByRole('button', { name: '時間が未記録のアカウントを選択' }).tap();
     assert.equal(await filled.isChecked(), false);
     assert.equal(await empty.isChecked(), true);
     await copyDialog.getByRole('button', { name: '1アカウントに反映' }).tap();
@@ -356,4 +356,146 @@ test('goal and actual cells keep their independent group colors through row high
   await assertColors();
   await page.reload();
   await assertColors();
+});
+
+for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }]) {
+  test(`swiping a liver name scrolls without editing or reordering (${viewport.width}×${viewport.height})`, async t => {
+    const page = await openMobile(t, viewport);
+    await page.evaluate(() => {
+      const book = window.pocolog.getBook();
+      book.months[book.currentMonth] = {
+        columns: Array.from({ length: 24 }, (_, i) => `アカウント${i + 1}`),
+        rows: Array.from({ length: 40 }, (_, i) => ({ name: `ライバー${i + 1}`, memo: '', values: Array(24).fill('5') }))
+      };
+      window.pocolog.setBook(book);
+    });
+    await page.locator('#monthViewTime').tap();
+    const original = await page.evaluate(() => JSON.stringify(window.pocolog.getBook()));
+    const wrap = page.locator('#tablePanel>.table-wrap');
+    assert.ok(await wrap.evaluate(el => el.scrollWidth > el.clientWidth));
+    const client = await page.context().newCDPSession(page);
+    const swipe = async (dx, dy) => {
+      await page.locator('#grid tbody .name-trigger').first().scrollIntoViewIfNeeded();
+      const box = await page.locator('#grid tbody .name-trigger').first().boundingBox();
+      const x = box.x + box.width - 5, y = box.y + box.height / 2;
+      const touch = async (type, x, y) => client.send('Input.dispatchTouchEvent', {
+        type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }]
+      });
+      await touch('touchStart', x, y);
+      for (let i = 1; i <= 5; i++) await touch('touchMove', x + dx * i / 5, y + dy * i / 5);
+      await touch('touchEnd', x + dx, y + dy);
+    };
+    await page.screenshot({ path: `/tmp/pocolog-swipe-${viewport.width}.png` });
+    await swipe(-45, 0);
+    assert.ok(await wrap.evaluate(el => el.scrollLeft > 20), 'horizontal swipe must scroll');
+    await wrap.evaluate(el => { el.scrollLeft = 0; });
+    await page.locator('#grid tbody .name-trigger').first().scrollIntoViewIfNeeded();
+    const initialTop = await wrap.evaluate(el => el.scrollTop);
+    await swipe(0, -15);
+    assert.ok(await wrap.evaluate(el => el.scrollTop) > initialTop + 5, 'vertical swipe must scroll');
+    assert.equal(await page.locator('#coinDialog').isVisible(), false);
+    assert.equal(await page.evaluate(() => JSON.stringify(window.pocolog.getBook())), original);
+  });
+}
+
+test('mobile secondary actions remain reachable and explain local saving', async t => {
+  const page = await openMobile(t, { width: 320, height: 568 });
+  await page.locator('#syncInfo').tap();
+  await page.locator('#syncInfoDialog').getByText('入力はこの端末に自動保存されます。上部の「保存」で共有先へ送信します。').waitFor();
+  await assertFits(page, page.locator('#closeSyncInfo'), 44);
+  await page.locator('#closeSyncInfo').tap();
+  await page.locator('.table-tools>summary').tap();
+  const upload = page.getByLabel('バックアップから復元', { exact: true });
+  await upload.focus();
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'upload');
+  await page.screenshot({ path: '/tmp/pocolog-mobile-menu.png' });
+});
+
+for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 568, height: 320 }]) {
+  test(`actual shortcuts and repeated adjustments fit and preserve records (${viewport.width}×${viewport.height})`, async t => {
+    const page = await openMobile(t, viewport);
+    const month = await page.locator('#month').inputValue();
+    await page.evaluate(month => {
+      const book = window.pocolog.getBook();
+      book.months[month] = { columns: ['検証アカウント'], rows: [{ name: '検証ライバー', memo: '保持', values: ['5'], pairActuals: [{ cheerK: null, memo: '実績メモ', actuals: { [month+'-01']: { earnedDay: true, minutes: 30, cheerK: null } } }] }] };
+      window.pocolog.setBook(book);
+    }, month);
+    await page.locator('#monthViewActual').tap();
+    const cell = page.locator('#grid [data-actual-account="0"]').first();
+    const picker = page.locator('#cheerPicker');
+    const read = () => page.evaluate(month => window.pocolog.getBook().months[month].rows[0].pairActuals[0].cheerK, month);
+    await cell.tap();
+    await assertFits(page, picker);
+    assert.deepEqual(await picker.locator('.cheer-picker-jumps button').allTextContents(), ['1','2','5','10','20','30','40']);
+    assert.deepEqual(await picker.locator('.actual-picker-adjustments button').allTextContents(), ['−1','−5','＋1','＋5','＋10']);
+    for (const button of await picker.locator('.cheer-picker-jumps button,.actual-picker-adjustments button').all()) await assertFits(page, button, 44);
+    await assertFits(page, picker.locator('.cheer-picker-details'), 44);
+    assert.equal(await picker.getByRole('button', { name: '実績を1K減らす', exact: true }).isDisabled(), true);
+    await picker.getByRole('button', { name: '実績を1K増やす', exact: true }).tap();
+    assert.equal(await read(), 1);
+    await picker.getByRole('button', { name: '実績を5K増やす', exact: true }).tap();
+    await picker.getByRole('button', { name: '実績を10K増やす', exact: true }).tap();
+    assert.equal(await read(), 16);
+    await picker.getByRole('button', { name: '実績を5K減らす', exact: true }).tap();
+    await picker.getByRole('button', { name: '実績を1K減らす', exact: true }).tap();
+    assert.equal(await read(), 10);
+    await picker.getByRole('button', { name: 'エール選択を閉じる' }).tap();
+    await cell.tap();
+    assert.equal(await picker.locator('.actual-picker-value').textContent(), '10 K');
+    await picker.getByRole('button', { name: '40Kを入力', exact: true }).tap();
+    assert.equal(await read(), 40);
+    await page.locator('#undoCheer').tap();
+    assert.equal(await read(), 10);
+    await cell.tap();
+    await picker.getByRole('option', { name: '空欄', exact: true }).tap();
+    assert.equal(await read(), null);
+    await page.locator('#undoCheer').tap();
+    assert.equal(await read(), 10);
+    const row = await page.evaluate(month => window.pocolog.getBook().months[month].rows[0], month);
+    assert.equal(row.values[0], '5');
+    assert.equal(row.memo, '保持');
+    assert.equal(row.pairActuals[0].memo, '実績メモ');
+    assert.equal(row.pairActuals[0].actuals[month+'-01'].minutes, 30);
+    await page.reload();
+    assert.equal(await read(), 10);
+    await page.locator('#grid [data-actual-account="0"]').first().tap();
+    await page.screenshot({ path: `/tmp/pocolog-actual-shortcuts-${viewport.width}.png` });
+  });
+}
+
+test('actual adjustments protect zero, decimal values, and the upper limit', async t => {
+  const page = await openMobile(t, { width: 390, height: 844 });
+  const setValue = async value => {
+    await page.evaluate(value => {
+      const book = window.pocolog.getBook(), month = book.currentMonth;
+      book.months[month] = { columns: ['アカウント'], rows: [{ name: 'ライバー', memo: '', values: ['20'], pairActuals: [{ cheerK: value, memo: '' }] }] };
+      window.pocolog.setBook(book);
+    }, value);
+    await page.locator('#monthViewActual').tap();
+    await page.locator('#grid [data-actual-account="0"]').first().tap();
+  };
+  const picker = page.locator('#cheerPicker');
+  const minus = picker.getByRole('button', { name: '実績を1K減らす', exact: true });
+  const plus = picker.getByRole('button', { name: '実績を1K増やす', exact: true });
+  const read = () => page.evaluate(() => window.pocolog.getBook().months[window.pocolog.getBook().currentMonth].rows[0].pairActuals[0].cheerK);
+  await setValue(1);
+  await minus.tap();
+  assert.equal(await read(), 0);
+  assert.equal(await minus.isDisabled(), true);
+  await picker.getByRole('button', { name: 'エール選択を閉じる' }).tap();
+  await page.locator('#undoCheer').tap();
+  assert.equal(await read(), 1);
+  await setValue(0.5);
+  assert.equal(await minus.isDisabled(), true);
+  await plus.tap();
+  assert.equal(await read(), 1.5);
+  await minus.tap();
+  assert.equal(await read(), 0.5);
+  await setValue(1e9);
+  assert.equal(await plus.isDisabled(), true);
+  await minus.tap();
+  assert.equal(await read(), 999999999);
+  await plus.tap();
+  assert.equal(await read(), 1e9);
+  assert.equal(await plus.isDisabled(), true);
 });
